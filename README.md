@@ -1,6 +1,6 @@
 <div align="center">
 
-# id_x_007: SME IAO 活动预约系统
+# id_x_008: SME IAO 活动预约系统
 
 ![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=007&color=lightgray&style=flat-square&labelColor=black)
 ![协议](https://img.shields.io/static/v1?label=%E5%8D%8F%E8%AE%AE&message=AGPL-3.0&color=lightgray&style=flat-square&labelColor=black)
@@ -32,7 +32,7 @@
 ## 3. 项目亮点 (Highlights)
 
 1. **全流程业务闭环** —— 从主题发布、排期、报名、提醒、取消到反馈问卷与数据导出，一个系统覆盖预约业务全部环节，无需人工干预中间流程。
-2. **单端点 GraphQL 契约** —— 全部业务经 `POST /b/id_x_007/graphql` 统一收发，Query / Mutation 强类型 Schema 描述，前后端以 `ResponseType(code, message, data)` 统一响应封装，接口演进无路径碎片化。
+2. **单端点 GraphQL 契约** —— 全部业务经 `POST /b/id_x_008/graphql` 统一收发，Query / Mutation 强类型 Schema 描述，前后端以 `ResponseType(code, message, data)` 统一响应封装，接口演进无路径碎片化。
 3. **定时邮件自动化** —— 三个 cron 脚本驱动顾问提醒（活动前一日 21:00）、学生提醒（活动前一日 21:00）、反馈问卷（活动结束满 2 小时，去重防重发），所有邮件统一由 `careersme@cuhk.edu.cn` 发出。
 4. **精细业务规则** —— 同周限约 1 次、开始前 24 小时截止报名、结束前 4 小时禁取消、Open→Full→Closed 状态机自动流转，规则集中可审计。
 5. **批量排期工程化** —— 提供 14 天 Excel 模板下载、填写上传，命中已有记录则更新、否则新增，上传后返回成功 / 失败计数。
@@ -73,7 +73,7 @@ graph TD
     end
 
     subgraph 应用层
-        API[Litestar 后端<br/>GraphQL 端点 /b/id_x_007/graphql]
+        API[Litestar 后端<br/>GraphQL 端点 /b/id_x_008/graphql]
         CTRL[controllers.py 操作分发]
         VIEW[views.py 业务处理]
         MODEL[models.py ORM 映射]
@@ -91,7 +91,7 @@ graph TD
 
     STU -->|HTTPS /f/aa| HAP
     ADM -->|HTTPS /f/aa| HAP
-    HAP -->|负载均衡 /b/id_x_007/graphql| API
+    HAP -->|负载均衡 /b/id_x_008/graphql| API
     STU -.->|单点登录跳转| SSO
     API --> CTRL --> VIEW --> MODEL
     MODEL -->|SQLAlchemy 异步连接池| PG
@@ -121,7 +121,7 @@ sequenceDiagram
     participant D as PostgreSQL
     participant M as 邮件服务
 
-    U->>H: HTTPS POST /b/id_x_007/graphql
+    U->>H: HTTPS POST /b/id_x_008/graphql
     H->>L: 健康检查通过后轮询转发
     L->>G: 解析 Query / Mutation 操作
     G->>G: 输入校验（Strawberry Input）
@@ -147,7 +147,7 @@ sequenceDiagram
 ## 7. 目录结构 (Directory Structure)
 
 ```text
-id_x_007/                         # 模型根目录
+id_x_008/                         # 模型根目录
 ├── src/
 │   ├── controllers/              # 控制层：GraphQL 操作分发
 │   │   └── x_controllers.py      #   Query / Mutation 方法入口
@@ -179,13 +179,13 @@ id_x_007/                         # 模型根目录
 │   │   └── stores/               # 用户状态管理
 │   ├── next.config.ts            # Next.js 构建配置
 │   └── package.json              # 前端依赖清单
-├── x_plugin.py                   # 插件入口：注册 GraphQL 路由 /b/id_x_007/graphql
+├── x_plugin.py                   # 插件入口：注册 GraphQL 路由 /b/id_x_008/graphql
 └── requirements.txt              # Python 依赖清单
 ```
 
 ## 8. API 接口文档 (API Documentation)
 
-- 统一端点：`POST https://<HOST>/b/id_x_007/graphql`
+- 统一端点：`POST https://<HOST>/b/id_x_008/graphql`
 - 所有操作均为 GraphQL Query / Mutation；请求体 `{"query": "...", "variables": {"input": {...}}}`。
 - 响应统一封装为 `ResponseType { code, message, data }`，`data` 为 JSON 字符串，需客户端二次解析。
 - 管理操作需登录会话，未登录返回 `code=401`。
@@ -228,14 +228,14 @@ id_x_007/                         # 模型根目录
 调用示例（需替换 `<BASE_URL>` 与会话 Cookie）：
 
 ```bash
-curl -X POST "<BASE_URL>/b/id_x_007/graphql" \
+curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "mutation Login($input: LoginInput!) { login(input: $input) { code message data } }",
     "variables": {"input": {"username": "<USERNAME>", "password": "<PASSWORD>"}}
   }'
 
-curl -X POST "<BASE_URL>/b/id_x_007/graphql" \
+curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
   -H "Content-Type: application/json" \
   -H "Cookie: <SESSION_COOKIE>" \
   -d '{
@@ -257,7 +257,7 @@ curl -X POST "<BASE_URL>/b/id_x_007/graphql" \
 
 ```bash
 # 后端依赖
-cd id_x_007
+cd id_x_008
 pip install -r requirements.txt
 
 # 前端依赖
@@ -268,7 +268,7 @@ npm install
 ### 运行 (Run)
 
 ```bash
-# 后端（GraphQL 端点 /b/id_x_007/graphql，数据库凭据经环境变量加密注入）
+# 后端（GraphQL 端点 /b/id_x_008/graphql，数据库凭据经环境变量加密注入）
 python x_plugin.py
 
 # 前端开发
@@ -282,7 +282,7 @@ npm run build
 ### 生产部署 (可选)
 
 - **Supervisor**：使用 `tools/Supervisor/` 下配置守护后端进程（含 `DB_HOST` / `DB_PORT` / `DB_USERNAME` / `DB_PASSWORD` 加密环境变量）。
-- **HAProxy**：使用 `ops/haproxy.cfg`，前端产物由 Next.js 服务承载，域名 `sme-activity-apply.cuhk.edu.cn` 统一入口，SSL 终止于 HAProxy；`/b/id_x_007/graphql` 经健康检查（`option httpchk`）后轮询分发至多个后端实例，示例：
+- **HAProxy**：使用 `ops/haproxy.cfg`，前端产物由 Next.js 服务承载，域名 `sme-activity-apply.cuhk.edu.cn` 统一入口，SSL 终止于 HAProxy；`/b/id_x_008/graphql` 经健康检查（`option httpchk`）后轮询分发至多个后端实例，示例：
 
 ```text
 frontend sme_aa
@@ -291,7 +291,7 @@ frontend sme_aa
 
 backend litestar_nodes
     balance roundrobin
-    option httpchk GET /b/id_x_007/health
+    option httpchk GET /b/id_x_008/health
     server node1 127.0.0.1:8101 check
     server node2 127.0.0.1:8102 check
 ```
