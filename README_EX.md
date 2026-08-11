@@ -1,6 +1,6 @@
 <div align="center">
 
-# id_x_008: SME IAO 活动报名系统
+# id_x_008: SME IAO 预约系统
 
 ![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=007&color=lightgray&style=flat-square&labelColor=black)
 ![协议](https://img.shields.io/static/v1?label=%E5%8D%8F%E8%AE%AE&message=AGPL-3.0&color=lightgray&style=flat-square&labelColor=black)
