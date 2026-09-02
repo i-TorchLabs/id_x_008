@@ -2,7 +2,9 @@
 
 # id_x_008: SME IAO 预约系统
 
-![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=007&color=lightgray&style=flat-square&labelColor=black)
+**咨询主题发布 → 时段排期 → 人员预约 → 邮件提醒 → 取消与反馈 → 数据导出 的全流程预约闭环**
+
+![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=008&color=lightgray&style=flat-square&labelColor=black)
 ![协议](https://img.shields.io/static/v1?label=%E5%8D%8F%E8%AE%AE&message=AGPL-3.0&color=lightgray&style=flat-square&labelColor=black)
 ![作者](https://img.shields.io/static/v1?label=%E4%BD%9C%E8%80%85&message=IT&color=lightgray&style=flat-square&labelColor=black)
 ![组织](https://img.shields.io/static/v1?label=%E7%BB%84%E7%BB%87&message=SME&color=lightgray&style=flat-square&labelColor=black)
@@ -11,8 +13,6 @@
 ![数据库](https://img.shields.io/static/v1?label=%E6%95%B0%E6%8D%AE%E5%BA%93&message=PostgreSQL-18&color=lightgray&style=flat-square&labelColor=black)
 
 </div>
-
-**咨询主题发布 → 时段排期 → 人员预约 → 邮件提醒 → 取消与反馈 → 数据导出 的全流程预约闭环**
 
 ---
 
@@ -41,7 +41,7 @@
 
 ## 4. 技术栈 (Tech Stack)
 
-表 4-1 技术栈一览
+<p align="center">表 4-1 技术栈一览</p>
 
 | 分类 | 名称 | 版本 | 用途 |
 |------|------|------|------|
@@ -98,14 +98,6 @@ graph TD
     CRON -->|读取排期与报名| PG
     CRON -->|SMTP 发信| SMTP
     VIEW -->|报名 / 取消通知| SMTP
-
-    classDef blackText color:#000;
-    class STU,ADM,HAP,API,CTRL,VIEW,MODEL,PG,SSO,SMTP,CRON blackText;
-    style 客户端 color:#000
-    style 负载均衡层 color:#000
-    style 应用层 color:#000
-    style 数据层 color:#000
-    style 外部依赖 color:#000
 ```
 
 ## 6. 请求流转图 (Request Flow Diagram)
@@ -168,8 +160,6 @@ id_x_008/                         # 模型根目录
 │   └── log_util.py               # 日志工具
 ├── ops/
 │   └── haproxy.cfg               # HAProxy 负载均衡配置
-├── tools/
-│   └── Supervisor/               # 进程守护配置
 ├── web/                          # 前端应用（Next.js + React + Tailwind CSS）
 │   ├── src/
 │   │   ├── api/                  # GraphQL 客户端封装（单端点 POST）
@@ -179,8 +169,12 @@ id_x_008/                         # 模型根目录
 │   │   └── stores/               # 用户状态管理
 │   ├── next.config.ts            # Next.js 构建配置
 │   └── package.json              # 前端依赖清单
+├── __init__.py                   # 包标识
 ├── x_plugin.py                   # 插件入口：注册 GraphQL 路由 /b/id_x_008/graphql
-└── requirements.txt              # Python 依赖清单
+├── requirements.txt              # Python 依赖清单
+├── LICENSE                       # AGPL-3.0 许可证
+├── README_EX.md                  # 扩展说明文档
+└── README.md                     # 项目说明文档
 ```
 
 ## 8. API 接口文档 (API Documentation)
@@ -190,7 +184,7 @@ id_x_008/                         # 模型根目录
 - 响应统一封装为 `ResponseType { code, message, data }`，`data` 为 JSON 字符串，需客户端二次解析。
 - 管理操作需登录会话，未登录返回 `code=401`。
 
-表 8-1 GraphQL 操作汇总
+<p align="center">表 8-1 GraphQL 操作汇总</p>
 
 | 类型 | 操作名 | 说明 |
 |------|--------|------|
@@ -281,7 +275,7 @@ npm run build
 
 ### 生产部署 (可选)
 
-- **Supervisor**：使用 `tools/Supervisor/` 下配置守护后端进程（含 `DB_HOST` / `DB_PORT` / `DB_USERNAME` / `DB_PASSWORD` 加密环境变量）。
+- **Supervisor**：配置进程守护托管后端进程（含 `DB_HOST` / `DB_PORT` / `DB_USERNAME` / `DB_PASSWORD` 加密环境变量）。
 - **HAProxy**：使用 `ops/haproxy.cfg`，前端产物由 Next.js 服务承载，域名 `sme-activity-apply.cuhk.edu.cn` 统一入口，SSL 终止于 HAProxy；`/b/id_x_008/graphql` 经健康检查（`option httpchk`）后轮询分发至多个后端实例，示例：
 
 ```text
