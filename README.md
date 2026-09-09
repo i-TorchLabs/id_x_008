@@ -4,13 +4,13 @@
 
 **咨询主题发布 → 时段排期 → 人员预约 → 邮件提醒 → 取消与反馈 → 数据导出 的全流程预约闭环**
 
-![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=008&color=green&style=flat-square&labelColor=black)
-![协议](https://img.shields.io/static/v1?label=%E5%8D%8F%E8%AE%AE&message=AGPL-3.0&color=green&style=flat-square&labelColor=black)
-![作者](https://img.shields.io/static/v1?label=%E4%BD%9C%E8%80%85&message=IT&color=green&style=flat-square&labelColor=black)
-![组织](https://img.shields.io/static/v1?label=%E7%BB%84%E7%BB%87&message=SME&color=green&style=flat-square&labelColor=black)
-![引擎](https://img.shields.io/static/v1?label=%E5%BC%95%E6%93%8E&message=Litestar%20%2F%20React&color=green&style=flat-square&labelColor=black)
-![语言](https://img.shields.io/static/v1?label=%E8%AF%AD%E8%A8%80&message=Python%20%2F%20TypeScript&color=green&style=flat-square&labelColor=black)
-![数据库](https://img.shields.io/static/v1?label=%E6%95%B0%E6%8D%AE%E5%BA%93&message=PostgreSQL&color=green&style=flat-square&labelColor=black)
+![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=008&color=%234B5320&style=flat-square&labelColor=black)
+![协议](https://img.shields.io/static/v1?label=%E5%8D%8F%E8%AE%AE&message=AGPL-3.0&color=%234B5320&style=flat-square&labelColor=black)
+![作者](https://img.shields.io/static/v1?label=%E4%BD%9C%E8%80%85&message=IT&color=%234B5320&style=flat-square&labelColor=black)
+![组织](https://img.shields.io/static/v1?label=%E7%BB%84%E7%BB%87&message=SME&color=%234B5320&style=flat-square&labelColor=black)
+![引擎](https://img.shields.io/static/v1?label=%E5%BC%95%E6%93%8E&message=Litestar%20%2F%20React&color=%234B5320&style=flat-square&labelColor=black)
+![语言](https://img.shields.io/static/v1?label=%E8%AF%AD%E8%A8%80&message=Python%20%2F%20TypeScript&color=%234B5320&style=flat-square&labelColor=black)
+![数据库](https://img.shields.io/static/v1?label=%E6%95%B0%E6%8D%AE%E5%BA%93&message=PostgreSQL&color=%234B5320&style=flat-square&labelColor=black)
 
 </div>
 
