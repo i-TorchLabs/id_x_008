@@ -4,13 +4,13 @@
 
 **咨询主题发布 → 时段排期 → 人员预约 → 邮件提醒 → 取消与反馈 → 数据导出 的全流程预约闭环**
 
-![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=008&color=red&style=flat-square&labelColor=gray)
-![协议](https://img.shields.io/static/v1?label=%E5%8D%8F%E8%AE%AE&message=AGPL-3.0&color=red&style=flat-square&labelColor=gray)
-![作者](https://img.shields.io/static/v1?label=%E4%BD%9C%E8%80%85&message=IT&color=red&style=flat-square&labelColor=gray)
-![组织](https://img.shields.io/static/v1?label=%E7%BB%84%E7%BB%87&message=SME&color=red&style=flat-square&labelColor=gray)
-![引擎](https://img.shields.io/static/v1?label=%E5%BC%95%E6%93%8E&message=Litestar%20%2F%20React&color=red&style=flat-square&labelColor=gray)
-![语言](https://img.shields.io/static/v1?label=%E8%AF%AD%E8%A8%80&message=Python%20%2F%20TypeScript&color=red&style=flat-square&labelColor=gray)
-![数据库](https://img.shields.io/static/v1?label=%E6%95%B0%E6%8D%AE%E5%BA%93&message=PostgreSQL-18&color=red&style=flat-square&labelColor=gray)
+![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=008&color=lightgray&style=flat-square&labelColor=black)
+![协议](https://img.shields.io/static/v1?label=%E5%8D%8F%E8%AE%AE&message=AGPL-3.0&color=lightgray&style=flat-square&labelColor=black)
+![作者](https://img.shields.io/static/v1?label=%E4%BD%9C%E8%80%85&message=IT&color=lightgray&style=flat-square&labelColor=black)
+![组织](https://img.shields.io/static/v1?label=%E7%BB%84%E7%BB%87&message=SME&color=lightgray&style=flat-square&labelColor=black)
+![引擎](https://img.shields.io/static/v1?label=%E5%BC%95%E6%93%8E&message=Litestar%20%2F%20React&color=lightgray&style=flat-square&labelColor=black)
+![语言](https://img.shields.io/static/v1?label=%E8%AF%AD%E8%A8%80&message=Python%20%2F%20TypeScript&color=lightgray&style=flat-square&labelColor=black)
+![数据库](https://img.shields.io/static/v1?label=%E6%95%B0%E6%8D%AE%E5%BA%93&message=PostgreSQL-18&color=lightgray&style=flat-square&labelColor=black)
 
 </div>
 
@@ -50,7 +50,7 @@
 | API 规范 | GraphQL（Strawberry） | — | Query / Mutation 强类型契约 |
 | ORM | SQLAlchemy | 2.x | PostgreSQL 异步数据访问与连接池 |
 | 数据处理 | pandas / openpyxl / xlsxwriter | 2.x / 3.x | 批量排期解析与报表导出 |
-| 前端框架 | React / Next.js | 19 / 16 | 服务端渲染单页应用与路由 |
+| 前端框架 | React / Next.js | 19 / 15 | 服务端渲染单页应用与路由 |
 | 样式体系 | Tailwind CSS | 4.x | 原子化样式与主题变量 |
 | 日历组件 | FullCalendar | 6.x | 学生端日历视图 |
 | 富文本 | quill | 2.x | 项目内容编辑 |
