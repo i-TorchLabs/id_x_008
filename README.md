@@ -1,16 +1,14 @@
 <div align="center">
 
-# id_x_008: SME IAO 预约系统
+# ID008: SME IAO 预约系统
 
 **咨询主题发布 → 时段排期 → 人员预约 → 邮件提醒 → 取消与反馈 → 数据导出 的全流程预约闭环**
 
-![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=008&color=%234B5320&style=flat-square&labelColor=black)
-![协议](https://img.shields.io/static/v1?label=%E5%8D%8F%E8%AE%AE&message=AGPL-3.0&color=%234B5320&style=flat-square&labelColor=black)
-![作者](https://img.shields.io/static/v1?label=%E4%BD%9C%E8%80%85&message=IT&color=%234B5320&style=flat-square&labelColor=black)
-![组织](https://img.shields.io/static/v1?label=%E7%BB%84%E7%BB%87&message=SME&color=%234B5320&style=flat-square&labelColor=black)
-![引擎](https://img.shields.io/static/v1?label=%E5%BC%95%E6%93%8E&message=Litestar%20%2F%20React&color=%234B5320&style=flat-square&labelColor=black)
-![语言](https://img.shields.io/static/v1?label=%E8%AF%AD%E8%A8%80&message=Python%20%2F%20TypeScript&color=%234B5320&style=flat-square&labelColor=black)
-![数据库](https://img.shields.io/static/v1?label=%E6%95%B0%E6%8D%AE%E5%BA%93&message=PostgreSQL&color=%234B5320&style=flat-square&labelColor=black)
+![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=008&color=C3272B&style=for-the-badge&labelColor=555)
+![协议](https://img.shields.io/static/v1?label=%E5%8D%8F%E8%AE%AE&message=AGPL-3.0&color=C3272B&style=for-the-badge&labelColor=555)
+![作者](https://img.shields.io/static/v1?label=%E4%BD%9C%E8%80%85&message=IT&color=C3272B&style=for-the-badge&labelColor=555)
+![组织](https://img.shields.io/static/v1?label=%E7%BB%84%E7%BB%87&message=SME&color=C3272B&style=for-the-badge&labelColor=555)
+![引擎](https://img.shields.io/static/v1?label=%E5%BC%95%E6%93%8E&message=Litestar%20%2F%20React&color=C3272B&style=for-the-badge&labelColor=555)
 
 </div>
 
@@ -19,24 +17,24 @@
 ## 1. 简介 (Introduction)
 
 - **Slogan**: 为经管学院「国际事务办公室」提供线上化的一对一咨询预约能力。
-- **Description**: 本系统面向香港中文大学（深圳）经济管理学院「1v1咨询」预约平台，覆盖**咨询主题发布 → 时段排期 → 人员预约 → 邮件提醒 → 取消与反馈 → 数据汇总导出**的全流程闭环。学生侧将"找校友咨询"从邮件 / 微信沟通升级为自助式在线预约；管理侧将人工登记表升级为结构化数据，支持批量排期与一键导出；顾问侧通过邮件自动触达，无需登录即可掌握预约动态。系统采用前后端分离架构：后端基于 **Litestar** 异步框架，对外仅暴露单一 **GraphQL** 端点；前端基于 **React + Next.js + Tailwind CSS**，提供学生端与管理端两套布局；流量入口由 **HAProxy** 承担负载均衡与反向代理。
+- **Description**: 本系统面向香港中文大学（深圳）经济管理学院「1v1 咨询」预约平台，覆盖**咨询主题发布 → 时段排期 → 人员预约 → 邮件提醒 → 取消与反馈 → 数据汇总导出**的全流程闭环。学生侧将"找校友咨询"从邮件 / 微信沟通升级为自助式在线预约；管理侧将人工登记表升级为结构化数据，支持批量排期与一键导出；顾问侧通过邮件自动触达，无需登录即可掌握预约动态。系统采用前后端分离架构：后端基于 **Litestar** 异步框架，对外仅暴露单一 **GraphQL** 端点；前端基于 **React + Next.js + Tailwind CSS**，提供学生端与管理端两套布局；流量入口由 **HAProxy** 承担负载均衡与反向代理。
 
 ## 2. 核心特性 (Features)
 
 - 双端分离：学生端（CUHK ADFS 单点登录，首次登录自动建档）与管理端（账号密码登录）共用同一站点、两套布局。
 - 活动浏览：列表视图 + 日历视图（周/月/日切换），按 Open / Full / Closed 状态着色。
-- 活动报名：结构化话题单选、已占用置灰、同 ISO 自然周唯一性校验、订单号（R+8位数字）自动生成。
+- 活动报名：结构化话题单选、已占用置灰、同 ISO 自然周唯一性校验、订单号（R+8 位数字）自动生成。
 - 管理后台：咨询项目维护（富文本、名额、顾问）、活动单条创建 / Excel 批量排期上传、报名明细查看。
 - 数据导出：按时间区间 + 活动名多选导出 Excel，底部表格联动实时刷新报名明细。
 
 ## 3. 项目亮点 (Highlights)
 
 1. **全流程业务闭环** —— 从主题发布、排期、报名、提醒、取消到反馈问卷与数据导出，一个系统覆盖预约业务全部环节，无需人工干预中间流程。
-2. **单端点 GraphQL 契约** —— 全部业务经 `POST /b/id_x_008/graphql` 统一收发，Query / Mutation 强类型 Schema 描述，前后端以 `ResponseType(code, message, data)` 统一响应封装，接口演进无路径碎片化。
+2. **单端点 GraphQL 契约** —— 全部业务经 `POST /b/id_x_008/graphql` 统一收发，19 个 Query + 12 个 Mutation 强类型 Schema 描述，前后端以 `ResponseType(code, message, data)` 统一响应封装，接口演进无路径碎片化。
 3. **定时邮件自动化** —— 三个 cron 脚本驱动顾问提醒（活动前一日 21:00）、学生提醒（活动前一日 21:00）、反馈问卷（活动结束满 2 小时，去重防重发），所有邮件统一由 `careersme@cuhk.edu.cn` 发出。
 4. **精细业务规则** —— 同周限约 1 次、开始前 24 小时截止报名、结束前 4 小时禁取消、Open→Full→Closed 状态机自动流转，规则集中可审计。
 5. **批量排期工程化** —— 提供 14 天 Excel 模板下载、填写上传，命中已有记录则更新、否则新增，上传后返回成功 / 失败计数。
-6. **异步高性能后端** —— Litestar + SQLAlchemy 异步会话与连接池（pool_size=32、pool_recycle=360、pool_pre_ping），支撑大文件上传上限配置。
+6. **异步高性能后端** —— Litestar + SQLAlchemy 异步会话与连接池（pool_size=32、pool_recycle=360、pool_pre_ping），支撑大文件上传场景。
 7. **负载均衡高可用** —— HAProxy 作为统一入口，承担 SSL 终止、健康检查与多实例后端轮询分发，支持无状态横向扩容。
 
 ## 4. 技术栈 (Tech Stack)
@@ -74,9 +72,9 @@ graph TD
 
     subgraph 应用层
         API[Litestar 后端<br/>GraphQL 端点 /b/id_x_008/graphql]
-        CTRL[controllers.py 操作分发]
-        VIEW[views.py 业务处理]
-        MODEL[models.py ORM 映射]
+        CTRL[x_controllers.py 操作分发]
+        VIEW[x_views.py 业务处理]
+        MODEL[x_models.py ORM 映射]
     end
 
     subgraph 数据层
@@ -89,8 +87,8 @@ graph TD
         CRON[cron 定时脚本<br/>提醒 / 问卷]
     end
 
-    STU -->|HTTPS /f/aa| HAP
-    ADM -->|HTTPS /f/aa| HAP
+    STU -->|HTTPS| HAP
+    ADM -->|HTTPS| HAP
     HAP -->|负载均衡 /b/id_x_008/graphql| API
     STU -.->|单点登录跳转| SSO
     API --> CTRL --> VIEW --> MODEL
@@ -108,8 +106,8 @@ sequenceDiagram
     participant H as HAProxy
     participant L as Litestar
     participant G as GraphQL Schema
-    participant C as controllers.py
-    participant V as views.py
+    participant C as x_controllers.py
+    participant V as x_views.py
     participant D as PostgreSQL
     participant M as 邮件服务
 
@@ -142,7 +140,7 @@ sequenceDiagram
 id_x_008/                               # 模型根目录
 ├── src/
 │   ├── controllers/
-│   │   └── x_controllers.py            # GraphQL Query / Mutation 操作入口（31 个操作）
+│   │   └── x_controllers.py            # GraphQL Query / Mutation 操作入口（19+12 个操作）
 │   ├── models/
 │   │   └── x_models.py                 # SQLAlchemy ORM 模型（7 张表）
 │   ├── schemas/
@@ -154,12 +152,12 @@ id_x_008/                               # 模型根目录
 │   ├── send_reminder_mail_student.py   # 学生提醒（每日 21:00）
 │   └── send_question_mail.py           # 反馈问卷（每 2 小时，去重防重发）
 ├── utils/
-│   ├── database_client.py             # 数据库配置加载（加密凭据解密，连接池）
-│   ├── encrypt_util.py                # XOR + base64 加密工具
-│   ├── decrypt_util.py                # XOR + base64 解密工具
-│   └── log_util.py                    # 日志工具（request_id 上下文追踪）
+│   ├── database_client.py              # 数据库配置加载（加密凭据解密，连接池）
+│   ├── encrypt_util.py                 # XOR + base64 加密工具
+│   ├── decrypt_util.py                 # XOR + base64 解密工具
+│   └── log_util.py                     # 日志工具（request_id 上下文追踪）
 ├── ops/
-│   └── haproxy.cfg                    # HAProxy 负载均衡配置（SSL 终止 / 健康检查 / 轮询）
+│   └── haproxy.cfg                     # HAProxy 负载均衡配置（SSL 终止 / 健康检查 / 轮询）
 ├── web/                                # 前端应用（Next.js + React + Tailwind CSS）
 │   ├── src/
 │   │   ├── api/                        # GraphQL 客户端封装（admin.ts / user.ts / graphql.ts）
@@ -200,8 +198,8 @@ id_x_008/                               # 模型根目录
 | Query | search_user_activity | 活动筛选查询（按状态/时间/名称） |
 | Query | get_user_activity_detail | 活动详情（含话题占用状态） |
 | Query | fuzzy_activity_name | 活动名前缀模糊搜索 |
-| Mutation | apply_activity | 提交报名（同周唯一校验，403 重复） |
-| Mutation | cancel_apply | 取消报名（结束前 4 小时禁取消，403） |
+| Mutation | apply_activity | 提交报名（同周唯一校验，403 重复；开始前 24 小时截止，403） |
+| Mutation | cancel_apply | 取消报名（结束前 4 小时禁取消，403；记录不存在，404） |
 | Query | get_project_list | 项目分页列表 |
 | Query | search_project | 项目名模糊查询 |
 | Query | search_project_owner | 顾问下拉查询 |
@@ -221,7 +219,7 @@ id_x_008/                               # 模型根目录
 | Query | export_activity | 报名数据 Excel 导出 |
 | Query | fuzzy_export_activity_name | 导出活动名前缀模糊搜索 |
 | Query | search_query_title | 跨活动标题查询（全部去重活动名） |
-| Query | search_query_data | 跨活动报名数据查询（学生仅见本入） |
+| Query | search_query_data | 跨活动报名数据查询（学生仅见本人） |
 | Query | download_query_data | 跨活动报名数据下载（xlsx） |
 
 调用示例（需替换 `<BASE_URL>` 与会话 Cookie）：
@@ -287,7 +285,8 @@ npm install
 ### 运行 (Run)
 
 ```bash
-# 后端（GraphQL 端点 /b/id_x_008/graphql，端口 8101，数据库凭据经环境变量加密注入）
+# 后端（GraphQL 端点 /b/id_x_008/graphql，默认端口 8101，可用 AA_PORT 覆盖；
+# 数据库凭据经环境变量 DB_HOST / DB_PORT / DB_NAME / DB_USERNAME / DB_PASSWORD 注入）
 python x_plugin.py
 
 # 前端开发（端口 2008，代理 /b/* 至后端）
