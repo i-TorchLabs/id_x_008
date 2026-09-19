@@ -756,9 +756,10 @@ async def view_delete_project(info: Info, input: ProjectIdInput) -> ResponseType
                 return _resp(404, "项目不存在")
             await session.execute(delete(AaEnlistApply).where(AaEnlistApply.project_id == input.project_id))
             await session.execute(delete(AaEnlistActivity).where(AaEnlistActivity.project_id == input.project_id))
+            # 先解除项目对 content 的外键引用，再删 content，避免 FK 冲突
+            await session.execute(delete(AaEnlistProject).where(AaEnlistProject.id == input.project_id))
             if project.content_ex_id:
                 await session.execute(delete(AaEnlistContent).where(AaEnlistContent.id == project.content_ex_id))
-            await session.execute(delete(AaEnlistProject).where(AaEnlistProject.id == input.project_id))
             await session.commit()
             return _resp(200, "success", {"project_id": input.project_id})
         except Exception as e:

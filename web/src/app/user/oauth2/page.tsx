@@ -15,7 +15,7 @@ function OauthInner() {
   useEffect(() => {
     const token = params.get("token") ?? params.get("code") ?? "";
     if (!token) {
-      setError("缺少 SSO Token");
+      setError("Missing SSO Token");
       return;
     }
     userOauth(token).then((res) => {
@@ -24,7 +24,7 @@ function OauthInner() {
         setUser({ user_id: d.user_id, name: d.name, role: "user", token: d.token });
         router.replace("/user/home");
       } else {
-        setError(res.message || "SSO 登录失败");
+        setError(res.message || "SSO login failed");
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -32,14 +32,14 @@ function OauthInner() {
 
   return (
     <div className="p-10 text-center text-gray-500">
-      {error ? <span className="text-red-600">{error}</span> : "SSO 登录中..."}
+      {error ? <span className="text-red-600">{error}</span> : "Signing in via SSO..."}
     </div>
   );
 }
 
 export default function OauthPage() {
   return (
-    <Suspense fallback={<div className="p-10 text-center">加载中...</div>}>
+    <Suspense fallback={<div className="p-10 text-center">Loading...</div>}>
       <OauthInner />
     </Suspense>
   );

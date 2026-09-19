@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { getProjectNameList } from "@/api/admin";
+import { DateTimePicker, FieldLabel, PillButton, inputBaseStyle } from "./ui";
 
 export interface ActivityFormValue {
   project_id: number;
@@ -14,16 +15,16 @@ export interface ActivityFormValue {
 }
 
 const FIELDS: { key: keyof Omit<ActivityFormValue, "project_id" | "activity_name">; label: string }[] = [
-  { key: "activity_start_time", label: "活动开始时间" },
-  { key: "activity_end_time", label: "活动结束时间" },
-  { key: "apply_start_time", label: "报名开始时间" },
-  { key: "apply_end_time", label: "报名结束时间" },
+  { key: "activity_start_time", label: "Activity Start" },
+  { key: "activity_end_time", label: "Activity End" },
+  { key: "apply_start_time", label: "Application Start" },
+  { key: "apply_end_time", label: "Application End" },
 ];
 
 export default function ActivityForm({
   initial,
   onSubmit,
-  submitText = "保存",
+  submitText = "Save",
 }: {
   initial?: Partial<ActivityFormValue>;
   onSubmit: (v: ActivityFormValue) => Promise<void>;
@@ -48,7 +49,7 @@ export default function ActivityForm({
 
   return (
     <form
-      className="space-y-3"
+      style={{ display: "flex", flexDirection: "column", gap: "14px" }}
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true);
@@ -59,42 +60,43 @@ export default function ActivityForm({
         }
       }}
     >
-      <select
-        className="w-full rounded border px-3 py-2"
-        value={value.project_id}
-        onChange={(e) => setValue({ ...value, project_id: Number(e.target.value) })}
-        required
-      >
-        <option value={0}>选择项目</option>
-        {projects.map((p) => (
-          <option key={p.project_id} value={p.project_id}>{p.project_name}</option>
-        ))}
-      </select>
-      <input
-        className="w-full rounded border px-3 py-2"
-        placeholder="活动名称（留空则沿用项目名）"
-        value={value.activity_name}
-        onChange={(e) => setValue({ ...value, activity_name: e.target.value })}
-      />
+      <div>
+        <FieldLabel>Project</FieldLabel>
+        <select
+          style={{ ...inputBaseStyle, appearance: "none" }}
+          value={value.project_id}
+          onChange={(e) => setValue({ ...value, project_id: Number(e.target.value) })}
+          required
+        >
+          <option value={0}>Select project</option>
+          {projects.map((p) => (
+            <option key={p.project_id} value={p.project_id}>{p.project_name}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <FieldLabel>Activity Name (defaults to project name)</FieldLabel>
+        <input
+          style={inputBaseStyle}
+          placeholder="e.g. Week 2 Session"
+          value={value.activity_name}
+          onChange={(e) => setValue({ ...value, activity_name: e.target.value })}
+        />
+      </div>
       {FIELDS.map((f) => (
-        <label key={f.key} className="block text-sm">
-          <span className="mb-1 block text-gray-600">{f.label}</span>
-          <input
-            type="datetime-local"
-            className="w-full rounded border px-3 py-2"
+        <div key={f.key}>
+          <FieldLabel>{f.label}</FieldLabel>
+          <DateTimePicker
             value={value[f.key]}
-            onChange={(e) => setValue({ ...value, [f.key]: e.target.value })}
-            required
+            onChange={(iso) => setValue({ ...value, [f.key]: iso })}
           />
-        </label>
+        </div>
       ))}
-      <button
-        type="submit"
-        disabled={busy}
-        className="rounded bg-[#7a0026] px-4 py-2 text-white disabled:opacity-50"
-      >
-        {busy ? "提交中..." : submitText}
-      </button>
+      <div style={{ paddingTop: "8px" }}>
+        <PillButton primary disabled={busy}>
+          {busy ? "Saving..." : submitText}
+        </PillButton>
+      </div>
     </form>
   );
 }

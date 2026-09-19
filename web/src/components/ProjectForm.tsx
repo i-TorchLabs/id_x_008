@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { searchProjectOwner } from "@/api/admin";
 import RichTextEditor from "./RichTextEditor";
+import { FieldLabel, PillButton, inputBaseStyle } from "./ui";
 
 export interface ProjectFormValue {
   project_name: string;
@@ -15,7 +16,7 @@ export interface ProjectFormValue {
 export default function ProjectForm({
   initial,
   onSubmit,
-  submitText = "保存",
+  submitText = "Save",
 }: {
   initial?: Partial<ProjectFormValue>;
   onSubmit: (v: ProjectFormValue) => Promise<void>;
@@ -38,7 +39,7 @@ export default function ProjectForm({
 
   return (
     <form
-      className="space-y-3"
+      style={{ display: "flex", flexDirection: "column", gap: "14px" }}
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true);
@@ -49,41 +50,51 @@ export default function ProjectForm({
         }
       }}
     >
-      <input
-        className="w-full rounded border px-3 py-2"
-        placeholder="项目名称（唯一）"
-        value={value.project_name}
-        onChange={(e) => setValue({ ...value, project_name: e.target.value })}
-        required
-      />
-      <input
-        className="w-full rounded border px-3 py-2"
-        placeholder="名额（数字）"
-        value={value.quota}
-        onChange={(e) => setValue({ ...value, quota: e.target.value })}
-        required
-      />
-      <select
-        className="w-full rounded border px-3 py-2"
-        value={value.owner}
-        onChange={(e) => setValue({ ...value, owner: e.target.value })}
-      >
-        <option value="">选择顾问</option>
-        {owners.map((o) => (
-          <option key={o.name} value={o.name}>{o.name}（{o.email}）</option>
-        ))}
-      </select>
-      <RichTextEditor
-        value={value.project_content}
-        onChange={(html) => setValue({ ...value, project_content: html })}
-      />
-      <button
-        type="submit"
-        disabled={busy}
-        className="rounded bg-[#7a0026] px-4 py-2 text-white disabled:opacity-50"
-      >
-        {busy ? "提交中..." : submitText}
-      </button>
+      <div>
+        <FieldLabel>Project Name (unique)</FieldLabel>
+        <input
+          style={inputBaseStyle}
+          placeholder="e.g. 1v1 Academic Advising"
+          value={value.project_name}
+          onChange={(e) => setValue({ ...value, project_name: e.target.value })}
+          required
+        />
+      </div>
+      <div>
+        <FieldLabel>Quota (number)</FieldLabel>
+        <input
+          style={inputBaseStyle}
+          placeholder="e.g. 20"
+          value={value.quota}
+          onChange={(e) => setValue({ ...value, quota: e.target.value })}
+          required
+        />
+      </div>
+      <div>
+        <FieldLabel>Advisor</FieldLabel>
+        <select
+          style={{ ...inputBaseStyle, appearance: "none" }}
+          value={value.owner}
+          onChange={(e) => setValue({ ...value, owner: e.target.value })}
+        >
+          <option value="">Select advisor</option>
+          {owners.map((o) => (
+            <option key={o.name} value={o.name}>{o.name}（{o.email}）</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <FieldLabel>Description</FieldLabel>
+        <RichTextEditor
+          value={value.project_content}
+          onChange={(html) => setValue({ ...value, project_content: html })}
+        />
+      </div>
+      <div style={{ paddingTop: "8px" }}>
+        <PillButton primary disabled={busy}>
+          {busy ? "Saving..." : submitText}
+        </PillButton>
+      </div>
     </form>
   );
 }

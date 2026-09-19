@@ -1,16 +1,26 @@
 "use client";
 
-/** 学生首页：活动列表 + 日历视图（周/月/日切换），按状态着色。 */
+/** 学生首页：复刻 id_x_204 UserHomeView ——
+ *  紫色横幅卡 + 白色筛选条 + 视图切换（n-radio-group）+ 描边数据表 / 日历。 */
 import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { type ActivityItem, getUserActivityList } from "@/api/user";
 import CalendarComponent from "@/components/CalendarComponent";
+import {
+  Badge, Card, EmptyState, PillButton, RadioButtonGroup,
+  inputBaseStyle, tableStyle, tdMonoStyle, tdPrimaryStyle, tdStyle, thStyle,
+} from "@/components/ui";
+import { SF_TEXT, tokens } from "@/utils/tokens";
 
-const STATE_BADGE: Record<string, string> = {
-  Open: "bg-green-100 text-green-700",
-  Full: "bg-amber-100 text-amber-700",
-  Closed: "bg-gray-200 text-gray-500",
+const stateBadge = (state: string) => {
+  if (state === "Open")
+    return <Badge bg="rgba(24,160,88,0.12)" color="#18a058">Open</Badge>;
+  if (state === "Full")
+    return <Badge bg="rgba(208,48,80,0.12)" color="#d03050">Full</Badge>;
+  if (state === "Closed")
+    return <Badge bg="rgba(0,0,0,0.06)" color={tokens.fg3}>Closed</Badge>;
+  return <Badge bg={tokens.badgeBg} color={tokens.fg3}>{state}</Badge>;
 };
 
 export default function UserHomePage() {
@@ -35,85 +45,120 @@ export default function UserHomePage() {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          className="rounded border px-3 py-2"
-          placeholder="搜索活动名..."
-          value={fuzzy}
-          onChange={(e) => setFuzzy(e.target.value)}
-        />
-        <button
-          className="rounded bg-[#7a0026] px-4 py-2 text-white"
-          onClick={() => { setPage(1); load(1, fuzzy); }}
-        >
-          搜索
-        </button>
-        <div className="ml-auto flex gap-2">
-          <button
-            className={`rounded px-3 py-2 ${view === "list" ? "bg-[#7a0026] text-white" : "border"}`}
-            onClick={() => setView("list")}
-          >
-            列表
-          </button>
-          <button
-            className={`rounded px-3 py-2 ${view === "calendar" ? "bg-[#7a0026] text-white" : "border"}`}
-            onClick={() => setView("calendar")}
-          >
-            日历
-          </button>
-        </div>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontFamily: SF_TEXT }}>
+      {/* ── 紫色横幅卡 ── */}
+      <Card style={{ background: tokens.accent, border: "none", textAlign: "center" }}>
+        <span style={{ fontSize: "24px", color: "#fff", fontWeight: 500 }}>
+          SME IAO 1v1 Consulting Program
+        </span>
+      </Card>
 
-      {view === "calendar" ? (
-        <div className="rounded bg-white p-4 shadow">
-          <CalendarComponent
-            activities={items}
-            onSelect={(id) => router.push(`/user/activity?id=${id}`)}
+      {/* ── 筛选条 ── */}
+      <Card noPadding>
+        <div className="flex flex-wrap items-center justify-between gap-3" style={{ padding: "12px 20px" }}>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span style={{ fontSize: "14px", color: tokens.fg2 }}>Title</span>
+            <div style={{ width: "220px" }}>
+              <input
+                style={inputBaseStyle}
+                placeholder="Please Input Title"
+                value={fuzzy}
+                onChange={(e) => setFuzzy(e.target.value)}
+              />
+            </div>
+            <PillButton onClick={() => { setPage(1); load(1, fuzzy); }}>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+              Search
+            </PillButton>
+          </div>
+          <PillButton primary onClick={() => router.push("/user/records")}>
+            My Records
+          </PillButton>
+        </div>
+      </Card>
+
+      {/* ── 日期 / 视图切换条 ── */}
+      <Card noPadding>
+        <div className="flex items-center justify-between" style={{ padding: "8px 20px" }}>
+          <div className="flex items-center gap-2">
+            <span style={{ fontWeight: 700, fontSize: "14px" }}>Date</span>
+            <Badge>{dayjs().format("YYYY-MM-DD")}</Badge>
+            <Badge bg={tokens.accentSoft} color={tokens.accent}>{dayjs().format("dddd")}</Badge>
+          </div>
+          <RadioButtonGroup
+            options={[
+              { value: "calendar", label: "calendar" },
+              { value: "list", label: "list" },
+            ]}
+            value={view}
+            onChange={setView}
           />
         </div>
-      ) : (
-        <div className="space-y-3">
-          {items.map((a) => (
-            <div key={a.activity_id} className="flex items-center justify-between rounded bg-white p-4 shadow">
-              <div>
-                <div className="font-medium">{a.activity_name}</div>
-                <div className="text-sm text-gray-500">
-                  {dayjs(a.activity_start_time).format("YYYY-MM-DD HH:mm")} -{" "}
-                  {dayjs(a.activity_end_time).format("HH:mm")} · 顾问 {a.owner} ·{" "}
-                  {a.apply_count}/{a.quota || "∞"}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`rounded px-2 py-1 text-xs ${STATE_BADGE[a.state]}`}>{a.state}</span>
-                <button
-                  className="rounded border border-[#7a0026] px-3 py-1 text-sm text-[#7a0026] disabled:opacity-40"
-                  disabled={a.state !== "Open"}
-                  onClick={() => router.push(`/user/activity?id=${a.activity_id}`)}
-                >
-                  预约
-                </button>
-              </div>
-            </div>
-          ))}
-          <div className="flex items-center justify-center gap-4 text-sm">
-            <button
-              className="rounded border px-3 py-1 disabled:opacity-40"
-              disabled={page <= 1}
-              onClick={() => { setPage(page - 1); load(page - 1); }}
-            >
-              上一页
-            </button>
-            <span>第 {page} 页 / 共 {total} 条</span>
-            <button
-              className="rounded border px-3 py-1 disabled:opacity-40"
-              disabled={page * 10 >= total}
-              onClick={() => { setPage(page + 1); load(page + 1); }}
-            >
-              下一页
-            </button>
+      </Card>
+
+      {/* ── 列表 / 日历 ── */}
+      {view === "calendar" ? (
+        <Card noPadding>
+          <div style={{ padding: "8px" }}>
+            <CalendarComponent
+              activities={items}
+              onSelect={(id) => router.push(`/user/activity?id=${id}`)}
+            />
           </div>
-        </div>
+        </Card>
+      ) : (
+        <Card noPadding>
+          {items.length === 0 ? (
+            <EmptyState>No activities</EmptyState>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    {["Date", "Time", "Title", "State", "Occupied", "Options"].map((h) => (
+                      <th key={h} style={thStyle}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((a) => (
+                    <tr key={a.activity_id} data-row>
+                      <td style={tdMonoStyle}>{dayjs(a.activity_start_time).format("YYYY-MM-DD")}</td>
+                      <td style={tdMonoStyle}>
+                        {dayjs(a.activity_start_time).format("HH:mm")} — {dayjs(a.activity_end_time).format("HH:mm")}
+                      </td>
+                      <td style={tdPrimaryStyle}>{a.activity_name}</td>
+                      <td style={tdStyle}>{stateBadge(a.state)}</td>
+                      <td style={tdMonoStyle}>{a.apply_count}/{a.quota || "∞"}</td>
+                      <td style={tdStyle}>
+                        <PillButton
+                          primary
+                          disabled={a.state !== "Open"}
+                          onClick={() => router.push(`/user/activity?id=${a.activity_id}`)}
+                        >
+                          Apply
+                        </PillButton>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {/* 分页 */}
+          <div className="flex items-center justify-end gap-3" style={{ padding: "12px 20px" }}>
+            <PillButton small disabled={page <= 1}
+              onClick={() => { setPage(page - 1); load(page - 1); }}>Prev</PillButton>
+            <span style={{ fontSize: "13px", color: tokens.fg3 }}>
+              Page {page} / {total} items
+            </span>
+            <PillButton small disabled={page * 10 >= total}
+              onClick={() => { setPage(page + 1); load(page + 1); }}>Next</PillButton>
+          </div>
+        </Card>
       )}
     </div>
   );

@@ -6,6 +6,11 @@ import {
   createProject, deleteProject, getProjectList, type ProjectItem, updateProject,
 } from "@/api/admin";
 import ProjectForm, { type ProjectFormValue } from "@/components/ProjectForm";
+import {
+  Card, EmptyState, ErrorText, Modal, PageTitle, PillButton,
+  tableStyle, tdMonoStyle, tdPrimaryStyle, tdStyle, thStyle,
+} from "@/components/ui";
+import { SF_TEXT, tokens } from "@/utils/tokens";
 
 export default function ProjectManagementPage() {
   const [items, setItems] = useState<ProjectItem[]>([]);
@@ -13,6 +18,7 @@ export default function ProjectManagementPage() {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<ProjectItem | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<ProjectItem | null>(null);
   const [message, setMessage] = useState("");
 
   const load = useCallback(async (p = page) => {
@@ -21,7 +27,7 @@ export default function ProjectManagementPage() {
       setItems(res.parsed.list);
       setTotal(res.parsed.total);
     } else if (res.code === 401) {
-      setMessage("未登录或会话失效（401）");
+      setMessage("Session expired (401)");
     }
   }, [page]);
 
@@ -44,82 +50,102 @@ export default function ProjectManagementPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">项目管理</h2>
-        <button
-          className="rounded bg-[#7a0026] px-4 py-2 text-white"
-          onClick={() => { setCreating(true); setEditing(null); }}
-        >
-          新增项目
-        </button>
-      </div>
-      {message && <p className="text-sm text-red-600">{message}</p>}
-
-      {(creating || editing) && (
-        <div className="rounded bg-white p-6 shadow">
-          <h3 className="mb-3 font-medium">{creating ? "新增项目" : `编辑项目 #${editing?.project_id}`}</h3>
-          <ProjectForm
-            initial={editing ?? undefined}
-            onSubmit={creating ? submitCreate : submitUpdate}
-          />
-          <button
-            className="mt-3 text-sm text-gray-500 underline"
-            onClick={() => { setCreating(false); setEditing(null); }}
-          >
-            取消
-          </button>
+    <Card noPadding>
+      <div style={{ padding: "24px" }}>
+        {/* 工具条 */}
+        <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: "20px" }}>
+          <PageTitle>Project Management</PageTitle>
+          <PillButton primary onClick={() => { setCreating(true); setEditing(null); }}>
+            New Project
+          </PillButton>
         </div>
-      )}
+        {message && <ErrorText>{message}</ErrorText>}
 
-      <div className="overflow-x-auto rounded bg-white shadow">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              {["ID", "名称", "名额", "顾问", "更新时间", "操作"].map((h) => (
-                <th key={h} className="px-4 py-2 text-left">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((p) => (
-              <tr key={p.project_id} className="border-t">
-                <td className="px-4 py-2">{p.project_id}</td>
-                <td className="px-4 py-2">{p.project_name}</td>
-                <td className="px-4 py-2">{p.quota}</td>
-                <td className="px-4 py-2">{p.owner}</td>
-                <td className="px-4 py-2">{p.update?.slice(0, 16).replace("T", " ")}</td>
-                <td className="space-x-2 px-4 py-2">
-                  <button
-                    className="rounded border px-2 py-1 text-xs"
-                    onClick={() => { setEditing(p); setCreating(false); }}
-                  >
-                    编辑
-                  </button>
-                  <button
-                    className="rounded border border-red-500 px-2 py-1 text-xs text-red-600"
-                    onClick={async () => {
-                      if (!confirm(`确认删除项目「${p.project_name}」？将级联删除活动与报名。`)) return;
-                      const res = await deleteProject(p.project_id);
-                      setMessage(res.message);
-                      if (res.code === 200) load();
-                    }}
-                  >
-                    删除
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* 表格 */}
+        {items.length === 0 ? (
+          <EmptyState>No projects yet. Click New Project to create one.</EmptyState>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  {["ID", "Name", "Quota", "Advisor", "Updated", "Actions"].map((h) => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((p) => (
+                  <tr key={p.project_id} data-row>
+                    <td style={tdMonoStyle}>{p.project_id}</td>
+                    <td style={tdPrimaryStyle}>{p.project_name}</td>
+                    <td style={tdStyle}>{p.quota}</td>
+                    <td style={tdStyle}>{p.owner}</td>
+                    <td style={tdMonoStyle}>{p.update?.slice(0, 16).replace("T", " ")}</td>
+                    <td style={{ ...tdStyle, paddingRight: 0 }}>
+                      <div className="flex gap-2">
+                        <PillButton small onClick={() => { setEditing(p); setCreating(false); }}>
+                          Edit
+                        </PillButton>
+                        <PillButton small danger onClick={() => setDeleting(p)}>
+                          Delete
+                        </PillButton>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* 分页 */}
+        <div className="flex items-center gap-4" style={{ marginTop: "16px" }}>
+          <PillButton small disabled={page <= 1}
+            onClick={() => { setPage(page - 1); load(page - 1); }}>Prev</PillButton>
+          <span style={{ fontFamily: SF_TEXT, fontSize: "13px", color: tokens.fg3 }}>
+            Page {page} / {total} items
+          </span>
+          <PillButton small disabled={page * 10 >= total}
+            onClick={() => { setPage(page + 1); load(page + 1); }}>Next</PillButton>
+        </div>
       </div>
-      <div className="flex items-center gap-4 text-sm">
-        <button className="rounded border px-3 py-1 disabled:opacity-40" disabled={page <= 1}
-          onClick={() => { setPage(page - 1); load(page - 1); }}>上一页</button>
-        <span>第 {page} 页 / 共 {total} 条</span>
-        <button className="rounded border px-3 py-1 disabled:opacity-40" disabled={page * 10 >= total}
-          onClick={() => { setPage(page + 1); load(page + 1); }}>下一页</button>
-      </div>
-    </div>
+
+      {/* 新增/编辑弹层 */}
+      <Modal
+        open={creating || !!editing}
+        onClose={() => { setCreating(false); setEditing(null); }}
+        title={creating ? "New Project" : `Edit Project #${editing?.project_id}`}
+        width={560}
+      >
+        <ProjectForm
+          initial={editing ?? undefined}
+          onSubmit={creating ? submitCreate : submitUpdate}
+        />
+      </Modal>
+
+      {/* 删除确认弹层 */}
+      <Modal
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        title="Confirm Deletion?"
+        footer={
+          <>
+            <PillButton onClick={() => setDeleting(null)}>Cancel</PillButton>
+            <PillButton primary onClick={async () => {
+              if (!deleting) return;
+              const res = await deleteProject(deleting.project_id);
+              setMessage(res.message);
+              setDeleting(null);
+              if (res.code === 200) load();
+            }}>Delete</PillButton>
+          </>
+        }
+      >
+        <p style={{ fontFamily: SF_TEXT, fontSize: "14px", color: tokens.fg2, letterSpacing: "-0.15px", margin: 0 }}>
+          Deleting project "{deleting?.project_name}" will cascade-delete its activities and applications. This cannot be undone.
+        </p>
+      </Modal>
+    </Card>
   );
 }

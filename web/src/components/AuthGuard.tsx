@@ -26,7 +26,7 @@ export default function AuthGuard({
   }, [user, role, router]);
 
   if (!user || user.role !== role) {
-    return <div className="p-10 text-center text-gray-500">加载中...</div>;
+    return <div className="p-10 text-center text-gray-500">Loading...</div>;
   }
   return <>{children}</>;
 }

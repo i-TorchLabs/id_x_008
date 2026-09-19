@@ -1,9 +1,14 @@
 "use client";
 
-/** 管理端 · 报表导出：时间区间 + 活动名多选导出 Excel，底部表格联动刷新报名明细。 */
+/** 管理端 · 报表导出：时间区间 + 活动名多选Export Excel，底部表格联动刷新报名明细。 */
 import { useEffect, useState } from "react";
 import { exportActivity, fuzzyExportActivityName } from "@/api/admin";
 import { downloadBase64, gql } from "@/api/graphql";
+import {
+  Card, DateTimePicker, EmptyState, ErrorText, FieldLabel, PageTitle, PillButton,
+  inputBaseStyle, tableStyle, tdMonoStyle, tdPrimaryStyle, tdStyle, thStyle,
+} from "@/components/ui";
+import { SF_TEXT, tokens } from "@/utils/tokens";
 
 interface ApplyRow {
   id: number;
@@ -63,75 +68,101 @@ export default function ReportExportPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">报表导出</h2>
-      {message && <p className="text-sm text-red-600">{message}</p>}
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {/* 筛选卡 */}
+      <Card noPadding>
+        <div style={{ padding: "24px" }}>
+          <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: "20px" }}>
+            <PageTitle>Report Export</PageTitle>
+            <PillButton primary onClick={doExport}>Export Excel</PillButton>
+          </div>
+          {message && <ErrorText>{message}</ErrorText>}
 
-      <div className="flex flex-wrap items-end gap-3 rounded bg-white p-4 shadow">
-        <label className="text-sm">
-          <span className="mb-1 block text-gray-600">活动名搜索</span>
-          <input className="rounded border px-3 py-2" value={fuzzy}
-            onChange={(e) => setFuzzy(e.target.value)} placeholder="输入前缀..." />
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 block text-gray-600">开始时间</span>
-          <input type="datetime-local" className="rounded border px-3 py-2" value={startTime}
-            onChange={(e) => setStartTime(e.target.value)} />
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 block text-gray-600">结束时间</span>
-          <input type="datetime-local" className="rounded border px-3 py-2" value={endTime}
-            onChange={(e) => setEndTime(e.target.value)} />
-        </label>
-        <button className="rounded bg-[#7a0026] px-4 py-2 text-white" onClick={doExport}>
-          导出 Excel
-        </button>
-      </div>
+          <div className="flex flex-wrap items-end gap-4">
+            <div style={{ minWidth: "200px" }}>
+              <FieldLabel>Activity Name</FieldLabel>
+              <input style={inputBaseStyle} value={fuzzy}
+                onChange={(e) => setFuzzy(e.target.value)} placeholder="Type prefix..." />
+            </div>
+            <div style={{ minWidth: "220px" }}>
+              <FieldLabel>Start Time</FieldLabel>
+              <DateTimePicker value={startTime}
+                onChange={setStartTime} />
+            </div>
+            <div style={{ minWidth: "220px" }}>
+              <FieldLabel>End Time</FieldLabel>
+              <DateTimePicker value={endTime}
+                onChange={setEndTime} />
+            </div>
+          </div>
 
-      <div className="rounded bg-white p-4 shadow">
-        <div className="mb-2 text-sm font-medium">活动多选（已选 {selected.length}）</div>
-        <div className="flex flex-wrap gap-2">
-          {candidates.map((name) => {
-            const active = selected.includes(name);
-            return (
-              <button key={name}
-                className={`rounded border px-3 py-1 text-sm ${active ? "bg-[#7a0026] text-white" : ""}`}
-                onClick={() => setSelected(active ? selected.filter((s) => s !== name) : [...selected, name])}>
-                {name}
-              </button>
-            );
-          })}
+          {/* 活动多选 */}
+          <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: `1px solid ${tokens.divider}` }}>
+            <FieldLabel>Select Activities ({selected.length} selected)</FieldLabel>
+            <div className="flex flex-wrap gap-2">
+              {candidates.map((name) => {
+                const active = selected.includes(name);
+                return (
+                  <button
+                    key={name}
+                    onClick={() => setSelected(active ? selected.filter((s) => s !== name) : [...selected, name])}
+                    className="transition-opacity duration-200 hover:opacity-75"
+                    style={{
+                      fontFamily: SF_TEXT,
+                      fontSize: "13px",
+                      fontWeight: active ? 500 : 400,
+                      background: active ? tokens.accent : "transparent",
+                      color: active ? tokens.accentFg : tokens.fg2,
+                      border: `1px solid ${active ? tokens.accent : tokens.inputBorder}`,
+                      borderRadius: "3px",
+                      padding: "4px 12px",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
-      </div>
+      </Card>
 
-      <div className="overflow-x-auto rounded bg-white shadow">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              {["订单号", "活动", "姓名", "学号", "年级", "邮箱", "话题", "报名时间"].map((h) => (
-                <th key={h} className="px-3 py-2 text-left">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-t">
-                <td className="px-3 py-2">{r.order}</td>
-                <td className="px-3 py-2">{r.activity_name}</td>
-                <td className="px-3 py-2">{r.name}</td>
-                <td className="px-3 py-2">{r.number}</td>
-                <td className="px-3 py-2">{r.grade}</td>
-                <td className="px-3 py-2">{r.email}</td>
-                <td className="px-3 py-2">{r.info_1}</td>
-                <td className="px-3 py-2">{r.time}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-6 text-center text-gray-400">暂无数据</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* 明细卡 */}
+      <Card noPadding>
+        <div style={{ padding: "24px" }}>
+          {rows.length === 0 ? (
+            <EmptyState>No data</EmptyState>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    {["Order", "Activity", "Name", "Student ID", "Grade", "Email", "Topic", "Applied At"].map((h) => (
+                      <th key={h} style={thStyle}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id} data-row>
+                      <td style={tdMonoStyle}>{r.order}</td>
+                      <td style={tdPrimaryStyle}>{r.activity_name}</td>
+                      <td style={tdStyle}>{r.name}</td>
+                      <td style={tdMonoStyle}>{r.number}</td>
+                      <td style={tdStyle}>{r.grade}</td>
+                      <td style={tdStyle}>{r.email}</td>
+                      <td style={tdStyle}>{r.info_1}</td>
+                      <td style={tdMonoStyle}>{r.time}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

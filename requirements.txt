@@ -1,4 +1,4 @@
-# id_x_008 后端依赖清单（Python 3.11+）
+# id_x_008 后端依赖清单（Python 3.10+）
 litestar[standard]>=2.0
 strawberry-graphql[litestar]>=0.200
 sqlalchemy[asyncio]>=2.0

@@ -1,0 +1,76 @@
+name: id_x_008
+
+services:
+  db:
+    image: docker.io/library/postgres:18
+    container_name: id_x_008_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "45432:5432"
+    volumes:
+      - id_x_008_db_data:/var/lib/postgresql
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  service:
+    build:
+      context: ../../..
+      dockerfile: x_models/id_x_008/ops/Dockerfile.service
+    image: id_x_008_service:latest
+    container_name: id_x_008_service
+    restart: unless-stopped
+    environment:
+      DB_NAME: ${POSTGRES_DB}
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      AA_DB_ENCRYPTED: ${AA_DB_ENCRYPTED:-}
+      AA_SECRET_KEY: ${AA_SECRET_KEY:-}
+      AA_MAIL_PASSWORD: ${AA_MAIL_PASSWORD:-}
+      AA_PORT: "8101"
+      PROJECT_PATH: /app/i-Core
+    volumes:
+      # 日志挂载:宿主机 x_models/id_x_008/logs -> 容器 /app/i-Core/logs
+      - ../logs:/app/i-Core/logs
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    image: id_x_008_web:latest
+    container_name: id_x_008_web
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://service:8101
+    depends_on:
+      - service
+
+  haproxy:
+    image: docker.io/library/haproxy:3.2
+    container_name: id_x_008_haproxy
+    restart: unless-stopped
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    environment:
+      SERVICE_HOST: service
+      WEB_HOST: web
+    ports:
+      - "8008:8080"
+    depends_on:
+      - service
+      - web
+
+volumes:
+  id_x_008_db_data:

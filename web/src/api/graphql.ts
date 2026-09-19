@@ -22,6 +22,17 @@ function getToken(): string {
   return localStorage.getItem("aa_token") ?? "";
 }
 
+/** 401 统一处理：Token 失效时清除本地会话并跳转登录页 */
+function handleUnauthorized(code: number) {
+  if (code === 401 && typeof window !== "undefined") {
+    localStorage.removeItem("aa_token");
+    localStorage.removeItem("aa_user");
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
+  }
+}
+
 export async function gql<T = unknown>(
   query: string,
   variables?: Record<string, unknown>,
@@ -38,7 +49,7 @@ export async function gql<T = unknown>(
   const op = Object.keys(body.data ?? {})[0];
   const payload = body.data?.[op];
   if (!payload) {
-    return { code: 500, message: body.errors?.[0]?.message ?? "服务器错误", data: "{}" };
+    return { code: 500, message: body.errors?.[0]?.message ?? "Server error", data: "{}" };
   }
   let parsed: T | undefined;
   try {
@@ -46,6 +57,7 @@ export async function gql<T = unknown>(
   } catch {
     parsed = undefined;
   }
+  handleUnauthorized(payload.code);
   return { ...payload, parsed };
 }
 
@@ -63,7 +75,7 @@ export async function gqlFile(
   });
   const body = await res.json();
   const op = Object.keys(body.data ?? {})[0];
-  return body.data?.[op] ?? { code: 500, message: "服务器错误", file_name: "", file_base64: "" };
+  return body.data?.[op] ?? { code: 500, message: "Server error", file_name: "", file_base64: "" };
 }
 
 /** base64 -> 浏览器下载 */

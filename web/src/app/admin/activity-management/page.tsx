@@ -1,13 +1,18 @@
 "use client";
 
-/** 管理端 · 活动管理：活动列表 + 单条创建/编辑/删除 + Excel 批量排期上传/模板下载 + 报名明细。 */
+/** 管理端 · 活动管理：活动列表 + 创建/删除 + Excel 批量排期上传/模板下载 + 报名明细。 */
 import { useCallback, useEffect, useState } from "react";
 import {
   createActivity, deleteActivity, downloadActivityTemplate, getActivityDetail,
-  getActivityList, updateActivity, uploadActivity,
+  getActivityList, uploadActivity,
 } from "@/api/admin";
 import { downloadBase64 } from "@/api/graphql";
 import ActivityForm, { type ActivityFormValue } from "@/components/ActivityForm";
+import {
+  Badge, Card, EmptyState, ErrorText, Modal, PageTitle, PillButton,
+  tableStyle, tdMonoStyle, tdPrimaryStyle, tdStyle, thStyle,
+} from "@/components/ui";
+import { SF_TEXT, tokens } from "@/utils/tokens";
 
 interface ActivityRow {
   activity_id: number;
@@ -24,11 +29,19 @@ function toMs(local: string): string | null {
   return local ? String(new Date(local).getTime()) : null;
 }
 
+const stateBadge = (state: string) => {
+  if (state === "Open") return <Badge bg={tokens.accent} color={tokens.accentFg}>Open</Badge>;
+  if (state === "Full") return <Badge bg="transparent" color={tokens.fg} border={tokens.fg}>Full</Badge>;
+  if (state === "Closed") return <Badge bg={tokens.badgeBg} color={tokens.fg3}>Closed</Badge>;
+  return <Badge bg={tokens.badgeBg} color={tokens.fg3}>{state}</Badge>;
+};
+
 export default function ActivityManagementPage() {
   const [items, setItems] = useState<ActivityRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<ActivityRow | null>(null);
   const [detail, setDetail] = useState<{ name: string; list: Record<string, unknown>[] } | null>(null);
   const [message, setMessage] = useState("");
 
@@ -38,7 +51,7 @@ export default function ActivityManagementPage() {
       setItems(res.parsed.list as unknown as ActivityRow[]);
       setTotal(res.parsed.total);
     } else if (res.code === 401) {
-      setMessage("未登录或会话失效（401）");
+      setMessage("Session expired (401)");
     }
   }, [page]);
 
@@ -65,7 +78,7 @@ export default function ActivityManagementPage() {
     const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
     const res = await uploadActivity(file.name, base64);
     if (res.code === 200 && res.parsed) {
-      setMessage(`上传完成：成功 ${res.parsed.success_count} 条，失败 ${res.parsed.fail_count} 条`);
+      setMessage(`Upload done: ${res.parsed.success_count} succeeded, ${res.parsed.fail_count} failed`);
       load(1);
     } else {
       setMessage(res.message);
@@ -88,106 +101,153 @@ export default function ActivityManagementPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-semibold">活动管理</h2>
-        <div className="ml-auto flex gap-2">
-          <button className="rounded bg-[#7a0026] px-4 py-2 text-white"
-            onClick={() => setCreating(true)}>新增活动</button>
-          <button className="rounded border px-4 py-2" onClick={onDownloadTemplate}>
-            下载排期模板
-          </button>
-          <label className="cursor-pointer rounded border px-4 py-2">
-            批量上传(.xlsx)
-            <input type="file" accept=".xlsx" className="hidden"
-              onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
-          </label>
-        </div>
-      </div>
-      {message && <p className="text-sm text-red-600">{message}</p>}
-
-      {creating && (
-        <div className="rounded bg-white p-6 shadow">
-          <h3 className="mb-3 font-medium">新增活动</h3>
-          <ActivityForm onSubmit={submitCreate} />
-          <button className="mt-3 text-sm text-gray-500 underline" onClick={() => setCreating(false)}>
-            取消
-          </button>
-        </div>
-      )}
-
-      <div className="overflow-x-auto rounded bg-white shadow">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              {["ID", "活动", "项目", "时间", "报名", "状态", "操作"].map((h) => (
-                <th key={h} className="px-4 py-2 text-left">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((a) => (
-              <tr key={a.activity_id} className="border-t">
-                <td className="px-4 py-2">{a.activity_id}</td>
-                <td className="px-4 py-2">{a.activity_name}</td>
-                <td className="px-4 py-2">{a.project_name}</td>
-                <td className="px-4 py-2">{a.activity_start_time?.slice(0, 16).replace("T", " ")}</td>
-                <td className="px-4 py-2">{a.apply_count}/{a.quota || "∞"}</td>
-                <td className="px-4 py-2">{a.state}</td>
-                <td className="space-x-2 px-4 py-2">
-                  <button className="rounded border px-2 py-1 text-xs"
-                    onClick={() => showDetail(a.activity_id)}>明细</button>
-                  <button className="rounded border border-red-500 px-2 py-1 text-xs text-red-600"
-                    onClick={async () => {
-                      if (!confirm(`确认删除活动「${a.activity_name}」？将级联删除报名。`)) return;
-                      const res = await deleteActivity(a.activity_id);
-                      setMessage(res.message);
-                      if (res.code === 200) load();
-                    }}>删除</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex items-center gap-4 text-sm">
-        <button className="rounded border px-3 py-1 disabled:opacity-40" disabled={page <= 1}
-          onClick={() => { setPage(page - 1); load(page - 1); }}>上一页</button>
-        <span>第 {page} 页 / 共 {total} 条</span>
-        <button className="rounded border px-3 py-1 disabled:opacity-40" disabled={page * 10 >= total}
-          onClick={() => { setPage(page + 1); load(page + 1); }}>下一页</button>
-      </div>
-
-      {detail && (
-        <div className="rounded bg-white p-6 shadow">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-medium">「{detail.name}」报名明细（{detail.list.length}）</h3>
-            <button className="text-sm text-gray-500 underline" onClick={() => setDetail(null)}>关闭</button>
+    <Card noPadding>
+      <div style={{ padding: "24px" }}>
+        {/* 工具条 */}
+        <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: "20px" }}>
+          <PageTitle>Activities</PageTitle>
+          <div className="flex gap-2 flex-wrap">
+            <PillButton primary onClick={() => setCreating(true)}>New Activity</PillButton>
+            <PillButton onClick={onDownloadTemplate}>Download Template</PillButton>
+            <label style={{ display: "inline-flex" }}>
+              <span
+                className="transition-opacity duration-200 hover:opacity-75"
+                style={{
+                  fontFamily: SF_TEXT,
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  background: "transparent",
+                  color: tokens.fg,
+                  border: `1px solid ${tokens.inputBorder}`,
+                  borderRadius: "3px",
+                  height: "34px",
+                  padding: "0 15px",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
+              >
+                Batch Upload (.xlsx)
+              </span>
+              <input type="file" accept=".xlsx" className="hidden"
+                onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
+            </label>
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                {["订单号", "姓名", "学号", "年级", "邮箱", "话题", "报名时间"].map((h) => (
-                  <th key={h} className="px-3 py-2 text-left">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {detail.list.map((r) => (
-                <tr key={String(r.id)} className="border-t">
-                  <td className="px-3 py-2">{String(r.order)}</td>
-                  <td className="px-3 py-2">{String(r.name)}</td>
-                  <td className="px-3 py-2">{String(r.number)}</td>
-                  <td className="px-3 py-2">{String(r.grade)}</td>
-                  <td className="px-3 py-2">{String(r.email)}</td>
-                  <td className="px-3 py-2">{String(r.info_1)}</td>
-                  <td className="px-3 py-2">{String(r.time)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-      )}
-    </div>
+        {message && <ErrorText>{message}</ErrorText>}
+
+        {/* 表格 */}
+        {items.length === 0 ? (
+          <EmptyState>No activities yet. Click New Activity to create one.</EmptyState>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  {["ID", "Activity", "Project", "Time", "Applied", "State", "Actions"].map((h) => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((a) => (
+                  <tr key={a.activity_id} data-row>
+                    <td style={tdMonoStyle}>{a.activity_id}</td>
+                    <td style={tdPrimaryStyle}>{a.activity_name}</td>
+                    <td style={tdStyle}>{a.project_name}</td>
+                    <td style={tdMonoStyle}>{a.activity_start_time?.slice(0, 16).replace("T", " ")}</td>
+                    <td style={tdMonoStyle}>{a.apply_count}/{a.quota || "∞"}</td>
+                    <td style={tdStyle}>{stateBadge(a.state)}</td>
+                    <td style={{ ...tdStyle, paddingRight: 0 }}>
+                      <div className="flex gap-2">
+                        <PillButton small onClick={() => showDetail(a.activity_id)}>Detail</PillButton>
+                        <PillButton small danger onClick={() => setDeleting(a)}>Delete</PillButton>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* 分页 */}
+        <div className="flex items-center gap-4" style={{ marginTop: "16px" }}>
+          <PillButton small disabled={page <= 1}
+            onClick={() => { setPage(page - 1); load(page - 1); }}>Prev</PillButton>
+          <span style={{ fontFamily: SF_TEXT, fontSize: "13px", color: tokens.fg3 }}>
+            Page {page} / {total} items
+          </span>
+          <PillButton small disabled={page * 10 >= total}
+            onClick={() => { setPage(page + 1); load(page + 1); }}>Next</PillButton>
+        </div>
+      </div>
+
+      {/* New Activity弹层 */}
+      <Modal open={creating} onClose={() => setCreating(false)} title="New Activity" width={560}>
+        <ActivityForm onSubmit={submitCreate} />
+      </Modal>
+
+      {/* 删除确认弹层 */}
+      <Modal
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        title="Confirm Deletion?"
+        footer={
+          <>
+            <PillButton onClick={() => setDeleting(null)}>Cancel</PillButton>
+            <PillButton primary onClick={async () => {
+              if (!deleting) return;
+              const res = await deleteActivity(deleting.activity_id);
+              setMessage(res.message);
+              setDeleting(null);
+              if (res.code === 200) load();
+            }}>Delete</PillButton>
+          </>
+        }
+      >
+        <p style={{ fontFamily: SF_TEXT, fontSize: "14px", color: tokens.fg2, letterSpacing: "-0.15px", margin: 0 }}>
+          Deleting activity "{deleting?.activity_name}" will cascade-delete its applications. This cannot be undone.
+        </p>
+      </Modal>
+
+      {/* 报名明细弹层 */}
+      <Modal
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        title={`Applications for "${detail?.name}" (${detail?.list.length ?? 0})`}
+        width={860}
+      >
+        {detail && detail.list.length === 0 ? (
+          <EmptyState>No applications</EmptyState>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  {["Order", "Name", "Student ID", "Grade", "Email", "Topic", "Applied At"].map((h) => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {detail?.list.map((r) => (
+                  <tr key={String(r.id)} data-row>
+                    <td style={tdMonoStyle}>{String(r.order)}</td>
+                    <td style={tdPrimaryStyle}>{String(r.name)}</td>
+                    <td style={tdMonoStyle}>{String(r.number)}</td>
+                    <td style={tdStyle}>{String(r.grade)}</td>
+                    <td style={tdStyle}>{String(r.email)}</td>
+                    <td style={tdStyle}>{String(r.info_1)}</td>
+                    <td style={tdMonoStyle}>{String(r.time)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Modal>
+    </Card>
   );
 }
