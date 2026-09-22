@@ -254,7 +254,7 @@ export default function ActivityManagementPage() {
 
       {/* New Activity弹层 */}
       <Modal open={creating} onClose={() => setCreating(false)} title="New Activity" width={560}>
-        <ActivityForm onSubmit={submitCreate} />
+        <ActivityForm onSubmit={submitCreate} onCancel={() => setCreating(false)} />
       </Modal>
 
       {/* Edit Activity弹层 */}
@@ -275,6 +275,7 @@ export default function ActivityManagementPage() {
           } : undefined}
           submitText="Update"
           onSubmit={submitUpdate}
+          onCancel={() => setEditing(null)}
         />
       </Modal>
 

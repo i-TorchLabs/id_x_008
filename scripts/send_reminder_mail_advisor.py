@@ -18,10 +18,10 @@ if str(_REPO_ROOT) not in sys.path:
 from sqlalchemy import func, select  # noqa: E402
 
 from x_models.id_x_008.src.models.x_models import (  # noqa: E402
-    AaEnlistActivity,
-    AaEnlistApply,
-    AaEnlistProject,
-    AaOwnerInfo,
+    IaoEnlistActivity,
+    IaoEnlistApply,
+    IaoEnlistProject,
+    IaoOwnerInfo,
     get_session,
 )
 from x_models.id_x_008.src.views.x_views import MAIL_FROM, _send_mail  # noqa: E402
@@ -35,27 +35,27 @@ async def run() -> None:
 
     maker = get_session()
     async with maker() as session:
-        result = await session.execute(select(AaEnlistActivity).where(
-            AaEnlistActivity.activity_start_time >= day_start,
-            AaEnlistActivity.activity_start_time < day_end,
+        result = await session.execute(select(IaoEnlistActivity).where(
+            IaoEnlistActivity.activity_start_time >= day_start,
+            IaoEnlistActivity.activity_start_time < day_end,
         ))
         activities = result.scalars().all()
         for activity in activities:
             try:
-                project = await session.scalar(select(AaEnlistProject).where(
-                    AaEnlistProject.id == activity.project_id
+                project = await session.scalar(select(IaoEnlistProject).where(
+                    IaoEnlistProject.id == activity.project_id
                 ))
                 if not project:
                     continue
-                owner = await session.scalar(select(AaOwnerInfo).where(
-                    AaOwnerInfo.name == project.owner
+                owner = await session.scalar(select(IaoOwnerInfo).where(
+                    IaoOwnerInfo.name == project.owner
                 ))
                 if not owner or not owner.email:
                     logger.warning(f"顾问信息缺失（project={project.id}），跳过提醒邮件")
                     continue
                 count = await session.scalar(select(
                     func.count()
-                ).select_from(AaEnlistApply).where(AaEnlistApply.activity_id == activity.id))
+                ).select_from(IaoEnlistApply).where(IaoEnlistApply.activity_id == activity.id))
                 subject = f"咨询预约日程提醒-[{activity.name}]"
                 html = (
                     f"<p>Dear {owner.name},</p>"

@@ -30,7 +30,7 @@ RUN mkdir -p /app/i-Core/logs && chown -R appuser:appuser /app/i-Core
 ENV PROJECT_PATH=/app/i-Core \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    AA_PORT=8101
+    IAO_PORT=8101
 
 USER appuser
 EXPOSE 8101

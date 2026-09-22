@@ -3,7 +3,7 @@
 -- 明文：P@ss2026!  →  sha256: 0d81614a64bda9083d0a3b38b2d102fd9953f1628d3ab5edbd0cdd73f87d565b
 
 -- 若表先于服务启动创建（服务 on_startup 为 create_all，幂等兼容）
-CREATE TABLE IF NOT EXISTS aa_enlist_user (
+CREATE TABLE IF NOT EXISTS iao_enlist_user (
     id       SERIAL PRIMARY KEY,
     username VARCHAR(255) NOT NULL DEFAULT 'N/A',
     password VARCHAR(255) NOT NULL DEFAULT 'N/A',
@@ -15,15 +15,15 @@ CREATE TABLE IF NOT EXISTS aa_enlist_user (
     email    VARCHAR(255) NOT NULL DEFAULT 'N/A',
     time     TIMESTAMP    NULL DEFAULT NOW()
 );
-COMMENT ON TABLE aa_enlist_user IS '用户表';
+COMMENT ON TABLE iao_enlist_user IS '用户表';
 
 -- 幂等插入管理员（username 唯一判定，重复执行不报错）
-INSERT INTO aa_enlist_user (username, password, role, name, email)
+INSERT INTO iao_enlist_user (username, password, role, name, email)
 SELECT 'rayzha@cuhk.edu.cn',
        '0d81614a64bda9083d0a3b38b2d102fd9953f1628d3ab5edbd0cdd73f87d565b',
        'admin',
        '查锐',
        'rayzha@cuhk.edu.cn'
 WHERE NOT EXISTS (
-    SELECT 1 FROM aa_enlist_user WHERE username = 'rayzha@cuhk.edu.cn'
+    SELECT 1 FROM iao_enlist_user WHERE username = 'rayzha@cuhk.edu.cn'
 );

@@ -19,14 +19,14 @@ export interface FileResponseType {
 
 function getToken(): string {
   if (typeof window === "undefined") return "";
-  return localStorage.getItem("aa_token") ?? "";
+  return localStorage.getItem("iao_token") ?? "";
 }
 
 /** 401 统一处理：Token 失效时清除本地会话并跳转登录页 */
 function handleUnauthorized(code: number) {
   if (code === 401 && typeof window !== "undefined") {
-    localStorage.removeItem("aa_token");
-    localStorage.removeItem("aa_user");
+    localStorage.removeItem("iao_token");
+    localStorage.removeItem("iao_user");
     if (!window.location.pathname.startsWith("/login")) {
       window.location.href = "/login";
     }

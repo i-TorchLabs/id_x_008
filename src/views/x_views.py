@@ -36,13 +36,13 @@ from strawberry.types import Info
 
 from ...utils.log_util import get_request_id, logger
 from ..models.x_models import (
-    AaEnlistActivity,
-    AaEnlistApply,
-    AaEnlistContent,
-    AaEnlistProject,
-    AaEnlistUser,
-    AaHtmlTemplate,
-    AaOwnerInfo,
+    IaoEnlistActivity,
+    IaoEnlistApply,
+    IaoEnlistContent,
+    IaoEnlistProject,
+    IaoEnlistUser,
+    IaoHtmlTemplate,
+    IaoOwnerInfo,
     get_session,
 )
 from ..schemas.x_schemas import (
@@ -81,12 +81,12 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
-MAIL_SERVER = os.environ.get("AA_MAIL_SERVER", "mail.cuhk.edu.cn")
-MAIL_PORT = _env_int("AA_MAIL_PORT", 587)
-MAIL_USER = os.environ.get("AA_MAIL_USER", "careersme@cuhk.edu.cn")
-MAIL_FROM = os.environ.get("AA_MAIL_FROM", MAIL_USER)
-MAIL_PASSWORD = os.environ.get("AA_MAIL_PASSWORD", "")
-MAX_UPLOAD_BYTES = _env_int("AA_MAX_UPLOAD_BYTES", 10 * 1024 * 1024)
+MAIL_SERVER = os.environ.get("IAO_MAIL_SERVER", "mail.cuhk.edu.cn")
+MAIL_PORT = _env_int("IAO_MAIL_PORT", 587)
+MAIL_USER = os.environ.get("IAO_MAIL_USER", "careersme@cuhk.edu.cn")
+MAIL_FROM = os.environ.get("IAO_MAIL_FROM", MAIL_USER)
+MAIL_PASSWORD = os.environ.get("IAO_MAIL_PASSWORD", "")
+MAX_UPLOAD_BYTES = _env_int("IAO_MAX_UPLOAD_BYTES", 10 * 1024 * 1024)
 
 APPLY_DEADLINE_HOURS = 24   # 开始前 24 小时截止报名
 CANCEL_FORBID_HOURS = 4     # 结束前 4 小时禁取消
@@ -138,14 +138,14 @@ def _get_token(info: Info) -> str | None:
     return request.headers.get("Token")
 
 
-async def _get_user_by_token(info: Info) -> AaEnlistUser | None:
+async def _get_user_by_token(info: Info) -> IaoEnlistUser | None:
     token = _get_token(info)
     if not token or token == "N/A":
         return None
     try:
         maker = get_session()
         async with maker() as session:
-            return await _first(session, select(AaEnlistUser).where(AaEnlistUser.key == token))
+            return await _first(session, select(IaoEnlistUser).where(IaoEnlistUser.key == token))
     except Exception as e:
         logger.error(f"{_rid()}Token verification failed: {e}")
         return None
@@ -173,7 +173,7 @@ def _hash_password(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def _activity_status(apply_count: int, quota: int, activity: AaEnlistActivity) -> str:
+def _activity_status(apply_count: int, quota: int, activity: IaoEnlistActivity) -> str:
     """活动状态机：Open -> Full -> Closed。
 
     Closed：报名截止已过，或活动已开始/结束，或报名尚未开放；
@@ -226,12 +226,12 @@ def _log_mail(message: str, mail_to: str, subject: str) -> None:
 
 async def _apply_count(session: AsyncSession, activity_id: int) -> int:
     result = await session.execute(
-        select(func.count()).select_from(AaEnlistApply).where(AaEnlistApply.activity_id == activity_id)
+        select(func.count()).select_from(IaoEnlistApply).where(IaoEnlistApply.activity_id == activity_id)
     )
     return int(result.scalar() or 0)
 
 
-def _activity_dict(activity: AaEnlistActivity, project: AaEnlistProject | None,
+def _activity_dict(activity: IaoEnlistActivity, project: IaoEnlistProject | None,
                    apply_count: int, occupied_topics: list[str] | None = None) -> dict:
     quota = 0
     try:
@@ -258,7 +258,7 @@ def _activity_dict(activity: AaEnlistActivity, project: AaEnlistProject | None,
     }
 
 
-def _apply_dict(obj: AaEnlistApply, activity: AaEnlistActivity | None = None) -> dict:
+def _apply_dict(obj: IaoEnlistApply, activity: IaoEnlistActivity | None = None) -> dict:
     return {
         "id": obj.id,
         "project_id": obj.project_id,
@@ -285,8 +285,8 @@ def _apply_dict(obj: AaEnlistApply, activity: AaEnlistActivity | None = None) ->
     }
 
 
-async def _project_map(session: AsyncSession) -> dict[int, AaEnlistProject]:
-    result = await session.execute(select(AaEnlistProject))
+async def _project_map(session: AsyncSession) -> dict[int, IaoEnlistProject]:
+    result = await session.execute(select(IaoEnlistProject))
     return {p.id: p for p in result.scalars().all() if p.id is not None}
 
 
@@ -300,9 +300,9 @@ async def view_login(info: Info, input: LoginInput) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
-            user = await _first(session, select(AaEnlistUser).where(
-                AaEnlistUser.username == input.username,
-                AaEnlistUser.role == "admin",
+            user = await _first(session, select(IaoEnlistUser).where(
+                IaoEnlistUser.username == input.username,
+                IaoEnlistUser.role == "admin",
             ))
             if not user or user.password != _hash_password(input.password):
                 return _resp(403, "Invalid username or password")
@@ -329,7 +329,7 @@ async def view_logout(info: Info) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
-            db_user = await _first(session, select(AaEnlistUser).where(AaEnlistUser.id == user.id))
+            db_user = await _first(session, select(IaoEnlistUser).where(IaoEnlistUser.id == user.id))
             if db_user:
                 db_user.key = "N/A"
                 await session.commit()
@@ -360,9 +360,9 @@ async def view_user_oauth(info: Info, input: OauthInput) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
-            user = await _first(session, select(AaEnlistUser).where(AaEnlistUser.number == number))
+            user = await _first(session, select(IaoEnlistUser).where(IaoEnlistUser.number == number))
             if not user:
-                user = AaEnlistUser(
+                user = IaoEnlistUser(
                     username=number,
                     password="N/A",
                     role="user",
@@ -395,15 +395,15 @@ async def view_get_user_activity_list(info: Info, input: UserActivityListInput) 
     maker = get_session()
     async with maker() as session:
         try:
-            stmt = select(AaEnlistActivity).order_by(AaEnlistActivity.activity_start_time)
+            stmt = select(IaoEnlistActivity).order_by(IaoEnlistActivity.activity_start_time)
             start = _ms_to_dt(input.start_date)
             end = _ms_to_dt(input.end_date)
             if start:
-                stmt = stmt.where(AaEnlistActivity.activity_start_time >= start)
+                stmt = stmt.where(IaoEnlistActivity.activity_start_time >= start)
             if end:
-                stmt = stmt.where(AaEnlistActivity.activity_start_time <= end)
+                stmt = stmt.where(IaoEnlistActivity.activity_start_time <= end)
             if input.fuzzy_name:
-                stmt = stmt.where(AaEnlistActivity.name.like(f"%{input.fuzzy_name}%"))
+                stmt = stmt.where(IaoEnlistActivity.name.like(f"%{input.fuzzy_name}%"))
             result = await session.execute(stmt)
             activities = result.scalars().all()
             projects = await _project_map(session)
@@ -445,16 +445,16 @@ async def view_get_user_activity_detail(info: Info, input: ActivityDetailInput) 
     maker = get_session()
     async with maker() as session:
         try:
-            activity = await _first(session, select(AaEnlistActivity).where(
-                AaEnlistActivity.id == int(input.activity_id)
+            activity = await _first(session, select(IaoEnlistActivity).where(
+                IaoEnlistActivity.id == int(input.activity_id)
             ))
             if not activity:
                 return _resp(404, "Activity not found")
-            project = await _first(session, select(AaEnlistProject).where(
-                AaEnlistProject.id == activity.project_id
+            project = await _first(session, select(IaoEnlistProject).where(
+                IaoEnlistProject.id == activity.project_id
             ))
-            result = await session.execute(select(AaEnlistApply).where(
-                AaEnlistApply.activity_id == activity.id
+            result = await session.execute(select(IaoEnlistApply).where(
+                IaoEnlistApply.activity_id == activity.id
             ))
             applies = result.scalars().all()
             occupied = [a.info_1 for a in applies if a.info_1 and a.info_1 != "N/A"]
@@ -469,8 +469,8 @@ async def view_fuzzy_activity_name(info: Info, input: FuzzyNameInput) -> Respons
     maker = get_session()
     async with maker() as session:
         try:
-            result = await session.execute(select(AaEnlistActivity.name).where(
-                AaEnlistActivity.name.startswith(input.fuzzy_name)
+            result = await session.execute(select(IaoEnlistActivity.name).where(
+                IaoEnlistActivity.name.startswith(input.fuzzy_name)
             ).distinct())
             return _resp(200, "success", {"name_list": [r[0] for r in result.all()]})
         except Exception as e:
@@ -487,12 +487,12 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
     async with maker() as session:
         try:
             user_id_str = str(input.user_id)
-            activity = await _first(session, select(AaEnlistActivity).where(
-                AaEnlistActivity.id == int(input.activity_id)
+            activity = await _first(session, select(IaoEnlistActivity).where(
+                IaoEnlistActivity.id == int(input.activity_id)
             ).with_for_update())
             if not activity:
                 return _resp(404, "Activity not found")
-            user = await _first(session, select(AaEnlistUser).where(AaEnlistUser.id == input.user_id))
+            user = await _first(session, select(IaoEnlistUser).where(IaoEnlistUser.id == input.user_id))
             if not user:
                 return _resp(404, "User not found")
 
@@ -517,14 +517,14 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
                 })
 
             # 规则：同 ISO 自然周限约 1 次
-            result = await session.execute(select(AaEnlistApply).where(AaEnlistApply.user_id == user_id_str))
+            result = await session.execute(select(IaoEnlistApply).where(IaoEnlistApply.user_id == user_id_str))
             existing = result.scalars().all()
             if existing and activity.activity_start_time:
                 target_iso = activity.activity_start_time.isocalendar()[:2]
                 act_ids = {a.activity_id for a in existing if a.activity_id}
                 if act_ids:
-                    result = await session.execute(select(AaEnlistActivity).where(
-                        AaEnlistActivity.id.in_(act_ids)
+                    result = await session.execute(select(IaoEnlistActivity).where(
+                        IaoEnlistActivity.id.in_(act_ids)
                     ))
                     for old_act in result.scalars().all():
                         if old_act.activity_start_time and old_act.activity_start_time.isocalendar()[:2] == target_iso:
@@ -535,8 +535,8 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
                             })
 
             # 规则：名额已满（Full）
-            project = await _first(session, select(AaEnlistProject).where(
-                AaEnlistProject.id == activity.project_id
+            project = await _first(session, select(IaoEnlistProject).where(
+                IaoEnlistProject.id == activity.project_id
             ))
             quota = 0
             try:
@@ -550,9 +550,9 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
             # 规则：咨询话题唯一（同一活动内不可重复选择已被占用的话题）
             topic = (input.info_1 or "").strip()
             if topic and topic != "N/A":
-                dup = await _first(session, select(AaEnlistApply).where(
-                    AaEnlistApply.activity_id == activity.id,
-                    AaEnlistApply.info_1 == topic,
+                dup = await _first(session, select(IaoEnlistApply).where(
+                    IaoEnlistApply.activity_id == activity.id,
+                    IaoEnlistApply.info_1 == topic,
                 ))
                 if dup:
                     return _resp(403, "This topic has already been selected.", {
@@ -561,7 +561,7 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
                         "topic": topic,
                     })
 
-            obj = AaEnlistApply(
+            obj = IaoEnlistApply(
                 project_id=activity.project_id,
                 activity_id=activity.id,
                 user_id=user_id_str,
@@ -587,17 +587,17 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
                     "_start_time": activity.activity_start_time.strftime("%H:%M") if activity.activity_start_time else "",
                     "_end_time": activity.activity_end_time.strftime("%H:%M") if activity.activity_end_time else "",
                 }
-                template = await _first(session, select(AaHtmlTemplate).where(AaHtmlTemplate.type == "submit"))
+                template = await _first(session, select(IaoHtmlTemplate).where(IaoHtmlTemplate.type == "submit"))
                 mail_html = template.html.format(**msg) if template else json.dumps(msg, ensure_ascii=False)
                 await _send_mail_async("Your sign-up: successful", MAIL_FROM, user.email, "", mail_html)
                 _log_mail("Send Apply Email To Student Successful.", user.email, "Your sign-up: successful")
 
-                owner = await _first(session, select(AaOwnerInfo).where(
-                    AaOwnerInfo.name == (project.owner if project else "")
+                owner = await _first(session, select(IaoOwnerInfo).where(
+                    IaoOwnerInfo.name == (project.owner if project else "")
                 )) if project else None
                 if owner and owner.email:
                     ex_msg = {**msg, "_teacher_name": owner.name, "_student_name": user.name}
-                    template = await _first(session, select(AaHtmlTemplate).where(AaHtmlTemplate.type == "submit_ex"))
+                    template = await _first(session, select(IaoHtmlTemplate).where(IaoHtmlTemplate.type == "submit_ex"))
                     ex_html = template.html.format(**ex_msg) if template else json.dumps(ex_msg, ensure_ascii=False)
                     subject = f"Consultation reservation reminder-[{user.name}]"
                     await _send_mail_async(subject, MAIL_FROM, owner.email, "", ex_html)
@@ -620,14 +620,14 @@ async def view_cancel_apply(info: Info, input: CancelApplyInput) -> ResponseType
     maker = get_session()
     async with maker() as session:
         try:
-            apply_obj = await _first(session, select(AaEnlistApply).where(
-                AaEnlistApply.id == input.apply_id,
-                AaEnlistApply.user_id == str(input.user_id),
+            apply_obj = await _first(session, select(IaoEnlistApply).where(
+                IaoEnlistApply.id == input.apply_id,
+                IaoEnlistApply.user_id == str(input.user_id),
             ))
             if not apply_obj:
                 return _resp(404, "Registration record not found")
-            activity = await _first(session, select(AaEnlistActivity).where(
-                AaEnlistActivity.id == apply_obj.activity_id
+            activity = await _first(session, select(IaoEnlistActivity).where(
+                IaoEnlistActivity.id == apply_obj.activity_id
             ))
             # 规则：结束前 4 小时禁取消
             if activity and activity.activity_end_time and \
@@ -637,8 +637,8 @@ async def view_cancel_apply(info: Info, input: CancelApplyInput) -> ResponseType
                     "activity_name": activity.name,
                 })
 
-            user = await _first(session, select(AaEnlistUser).where(AaEnlistUser.id == input.user_id))
-            await session.execute(delete(AaEnlistApply).where(AaEnlistApply.id == input.apply_id))
+            user = await _first(session, select(IaoEnlistUser).where(IaoEnlistUser.id == input.user_id))
+            await session.execute(delete(IaoEnlistApply).where(IaoEnlistApply.id == input.apply_id))
             await session.commit()
 
             # 邮件通知（学生 + 顾问）；失败仅记录日志，不影响已提交的取消
@@ -650,16 +650,16 @@ async def view_cancel_apply(info: Info, input: CancelApplyInput) -> ResponseType
                         "_start_time": activity.activity_start_time.strftime("%H:%M") if activity.activity_start_time else "",
                         "_end_time": activity.activity_end_time.strftime("%H:%M") if activity.activity_end_time else "",
                     }
-                    template = await _first(session, select(AaHtmlTemplate).where(AaHtmlTemplate.type == "cancel"))
+                    template = await _first(session, select(IaoHtmlTemplate).where(IaoHtmlTemplate.type == "cancel"))
                     mail_html = template.html.format(**msg) if template else json.dumps(msg, ensure_ascii=False)
                     await _send_mail_async("Your cancellation: successful", MAIL_FROM, user.email, "", mail_html)
                     _log_mail("Send Cancel Email To Student Successful.", user.email, "Your cancellation: successful")
 
-                    project = await _first(session, select(AaEnlistProject).where(
-                        AaEnlistProject.id == activity.project_id
+                    project = await _first(session, select(IaoEnlistProject).where(
+                        IaoEnlistProject.id == activity.project_id
                     ))
-                    owner = await _first(session, select(AaOwnerInfo).where(
-                        AaOwnerInfo.name == (project.owner if project else "")
+                    owner = await _first(session, select(IaoOwnerInfo).where(
+                        IaoOwnerInfo.name == (project.owner if project else "")
                     )) if project else None
                     if owner and owner.email:
                         subject = f"Consultation cancellation reminder-[{user.name}]"
@@ -682,15 +682,15 @@ async def view_get_project_list(info: Info, input: PageInput) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
-            stmt = select(AaEnlistProject).order_by(
-                desc(AaEnlistProject.id) if input.sort_order == "desc" else AaEnlistProject.id
+            stmt = select(IaoEnlistProject).order_by(
+                desc(IaoEnlistProject.id) if input.sort_order == "desc" else IaoEnlistProject.id
             )
             start = _ms_to_dt(input.start_date)
             end = _ms_to_dt(input.end_date)
             if start:
-                stmt = stmt.where(AaEnlistProject.time >= start)
+                stmt = stmt.where(IaoEnlistProject.time >= start)
             if end:
-                stmt = stmt.where(AaEnlistProject.time <= end)
+                stmt = stmt.where(IaoEnlistProject.time <= end)
             result = await session.execute(stmt)
             projects = result.scalars().all()
             total = len(projects)
@@ -719,15 +719,15 @@ async def view_create_project(info: Info, input: CreateProjectInput) -> Response
     maker = get_session()
     async with maker() as session:
         try:
-            existing = await _first(session, select(AaEnlistProject).where(
-                AaEnlistProject.name == input.project_name
+            existing = await _first(session, select(IaoEnlistProject).where(
+                IaoEnlistProject.name == input.project_name
             ))
             if existing:
                 return _resp(403, "Project name already exists")
-            content_obj = AaEnlistContent(content=input.project_content, time=datetime.now())
+            content_obj = IaoEnlistContent(content=input.project_content, time=datetime.now())
             session.add(content_obj)
             await session.flush()
-            project = AaEnlistProject(
+            project = IaoEnlistProject(
                 name=input.project_name,
                 quota=input.quota,
                 content=input.project_content,
@@ -751,14 +751,14 @@ async def view_update_project(info: Info, input: UpdateProjectInput) -> Response
     maker = get_session()
     async with maker() as session:
         try:
-            project = await _first(session, select(AaEnlistProject).where(
-                AaEnlistProject.id == input.project_id
+            project = await _first(session, select(IaoEnlistProject).where(
+                IaoEnlistProject.id == input.project_id
             ))
             if not project:
                 return _resp(404, "Project not found")
-            duplicate = await _first(session, select(AaEnlistProject).where(
-                AaEnlistProject.name == input.project_name,
-                AaEnlistProject.id != input.project_id,
+            duplicate = await _first(session, select(IaoEnlistProject).where(
+                IaoEnlistProject.name == input.project_name,
+                IaoEnlistProject.id != input.project_id,
             ))
             if duplicate:
                 return _resp(403, "Project name already exists")
@@ -769,8 +769,8 @@ async def view_update_project(info: Info, input: UpdateProjectInput) -> Response
                 project.owner = input.owner
             project.update = datetime.now()
             if project.content_ex_id:
-                content_obj = await _first(session, select(AaEnlistContent).where(
-                    AaEnlistContent.id == project.content_ex_id
+                content_obj = await _first(session, select(IaoEnlistContent).where(
+                    IaoEnlistContent.id == project.content_ex_id
                 ))
                 if content_obj:
                     content_obj.content = input.project_content
@@ -789,17 +789,17 @@ async def view_delete_project(info: Info, input: ProjectIdInput) -> ResponseType
     maker = get_session()
     async with maker() as session:
         try:
-            project = await _first(session, select(AaEnlistProject).where(
-                AaEnlistProject.id == input.project_id
+            project = await _first(session, select(IaoEnlistProject).where(
+                IaoEnlistProject.id == input.project_id
             ))
             if not project:
                 return _resp(404, "Project not found")
-            await session.execute(delete(AaEnlistApply).where(AaEnlistApply.project_id == input.project_id))
-            await session.execute(delete(AaEnlistActivity).where(AaEnlistActivity.project_id == input.project_id))
+            await session.execute(delete(IaoEnlistApply).where(IaoEnlistApply.project_id == input.project_id))
+            await session.execute(delete(IaoEnlistActivity).where(IaoEnlistActivity.project_id == input.project_id))
             # 先解除项目对 content 的外键引用，再删 content，避免 FK 冲突
-            await session.execute(delete(AaEnlistProject).where(AaEnlistProject.id == input.project_id))
+            await session.execute(delete(IaoEnlistProject).where(IaoEnlistProject.id == input.project_id))
             if project.content_ex_id:
-                await session.execute(delete(AaEnlistContent).where(AaEnlistContent.id == project.content_ex_id))
+                await session.execute(delete(IaoEnlistContent).where(IaoEnlistContent.id == project.content_ex_id))
             await session.commit()
             return _resp(200, "success", {"project_id": input.project_id})
         except Exception as e:
@@ -814,8 +814,8 @@ async def view_search_project(info: Info, input: SearchProjectInput) -> Response
     maker = get_session()
     async with maker() as session:
         try:
-            result = await session.execute(select(AaEnlistProject).where(
-                AaEnlistProject.name.like(f"%{input.project_name}%")
+            result = await session.execute(select(IaoEnlistProject).where(
+                IaoEnlistProject.name.like(f"%{input.project_name}%")
             ))
             items = [{
                 "project_id": p.id,
@@ -839,7 +839,7 @@ async def view_search_project_owner(info: Info) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
-            result = await session.execute(select(AaOwnerInfo))
+            result = await session.execute(select(IaoOwnerInfo))
             items = [{"name": o.name, "email": o.email} for o in result.scalars().all()]
             return _resp(200, "success", {"owner_list": items})
         except Exception as e:
@@ -854,7 +854,7 @@ async def view_get_project_name_list(info: Info) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
-            result = await session.execute(select(AaEnlistProject.id, AaEnlistProject.name))
+            result = await session.execute(select(IaoEnlistProject.id, IaoEnlistProject.name))
             items = [{"project_id": r[0], "project_name": r[1]} for r in result.all()]
             return _resp(200, "success", {"name_list": items})
         except Exception as e:
@@ -870,15 +870,15 @@ async def view_get_activity_list(info: Info, input: PageInput) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
-            stmt = select(AaEnlistActivity).order_by(
-                desc(AaEnlistActivity.id) if input.sort_order == "desc" else AaEnlistActivity.id
+            stmt = select(IaoEnlistActivity).order_by(
+                desc(IaoEnlistActivity.id) if input.sort_order == "desc" else IaoEnlistActivity.id
             )
             start = _ms_to_dt(input.start_date)
             end = _ms_to_dt(input.end_date)
             if start:
-                stmt = stmt.where(AaEnlistActivity.activity_start_time >= start)
+                stmt = stmt.where(IaoEnlistActivity.activity_start_time >= start)
             if end:
-                stmt = stmt.where(AaEnlistActivity.activity_start_time <= end)
+                stmt = stmt.where(IaoEnlistActivity.activity_start_time <= end)
             result = await session.execute(stmt)
             activities = result.scalars().all()
             projects = await _project_map(session)
@@ -904,14 +904,14 @@ async def view_get_activity_detail(info: Info, input: ActivityIdInput) -> Respon
     maker = get_session()
     async with maker() as session:
         try:
-            activity = await _first(session, select(AaEnlistActivity).where(
-                AaEnlistActivity.id == input.activity_id
+            activity = await _first(session, select(IaoEnlistActivity).where(
+                IaoEnlistActivity.id == input.activity_id
             ))
             if not activity:
                 return _resp(404, "Activity not found")
-            result = await session.execute(select(AaEnlistApply).where(
-                AaEnlistApply.activity_id == input.activity_id
-            ).order_by(desc(AaEnlistApply.time)))
+            result = await session.execute(select(IaoEnlistApply).where(
+                IaoEnlistApply.activity_id == input.activity_id
+            ).order_by(desc(IaoEnlistApply.time)))
             items = [_apply_dict(a, activity) for a in result.scalars().all()]
             return _resp(200, "success", {
                 "activity_id": activity.id,
@@ -931,12 +931,12 @@ async def view_create_activity(info: Info, input: CreateActivityInput) -> Respon
     maker = get_session()
     async with maker() as session:
         try:
-            project = await _first(session, select(AaEnlistProject).where(
-                AaEnlistProject.id == input.project_id
+            project = await _first(session, select(IaoEnlistProject).where(
+                IaoEnlistProject.id == input.project_id
             ))
             if not project:
                 return _resp(404, "Project not found")
-            activity = AaEnlistActivity(
+            activity = IaoEnlistActivity(
                 name=input.activity_name or project.name,
                 project_id=input.project_id,
                 activity_start_time=_ms_to_dt(input.activity_start_time),
@@ -961,13 +961,13 @@ async def view_update_activity(info: Info, input: UpdateActivityInput) -> Respon
     maker = get_session()
     async with maker() as session:
         try:
-            activity = await _first(session, select(AaEnlistActivity).where(
-                AaEnlistActivity.id == input.activity_id
+            activity = await _first(session, select(IaoEnlistActivity).where(
+                IaoEnlistActivity.id == input.activity_id
             ))
             if not activity:
                 return _resp(404, "Activity not found")
-            project = await _first(session, select(AaEnlistProject).where(
-                AaEnlistProject.id == input.project_id
+            project = await _first(session, select(IaoEnlistProject).where(
+                IaoEnlistProject.id == input.project_id
             ))
             if not project:
                 return _resp(404, "Project not found")
@@ -1002,13 +1002,13 @@ async def view_delete_activity(info: Info, input: ActivityIdInput) -> ResponseTy
     maker = get_session()
     async with maker() as session:
         try:
-            activity = await _first(session, select(AaEnlistActivity).where(
-                AaEnlistActivity.id == input.activity_id
+            activity = await _first(session, select(IaoEnlistActivity).where(
+                IaoEnlistActivity.id == input.activity_id
             ))
             if not activity:
                 return _resp(404, "Activity not found")
-            await session.execute(delete(AaEnlistApply).where(AaEnlistApply.activity_id == input.activity_id))
-            await session.execute(delete(AaEnlistActivity).where(AaEnlistActivity.id == input.activity_id))
+            await session.execute(delete(IaoEnlistApply).where(IaoEnlistApply.activity_id == input.activity_id))
+            await session.execute(delete(IaoEnlistActivity).where(IaoEnlistActivity.id == input.activity_id))
             await session.commit()
             return _resp(200, "success", {"activity_id": input.activity_id})
         except Exception as e:
@@ -1034,15 +1034,15 @@ async def _search_activity_by_name(info: Info, input: SearchActivityInput) -> Re
     maker = get_session()
     async with maker() as session:
         try:
-            stmt = select(AaEnlistActivity).where(
-                AaEnlistActivity.name.like(f"%{input.fuzzy_name}%")
-            ).order_by(AaEnlistActivity.id)
+            stmt = select(IaoEnlistActivity).where(
+                IaoEnlistActivity.name.like(f"%{input.fuzzy_name}%")
+            ).order_by(IaoEnlistActivity.id)
             start = _ms_to_dt(input.start_date)
             end = _ms_to_dt(input.end_date)
             if start:
-                stmt = stmt.where(AaEnlistActivity.activity_start_time >= start)
+                stmt = stmt.where(IaoEnlistActivity.activity_start_time >= start)
             if end:
-                stmt = stmt.where(AaEnlistActivity.activity_start_time <= end)
+                stmt = stmt.where(IaoEnlistActivity.activity_start_time <= end)
             result = await session.execute(stmt)
             activities = result.scalars().all()
             projects = await _project_map(session)
@@ -1067,15 +1067,15 @@ async def view_get_activity_name_list(info: Info, input: ActivityNameListInput) 
     maker = get_session()
     async with maker() as session:
         try:
-            stmt = select(AaEnlistActivity.name).distinct()
+            stmt = select(IaoEnlistActivity.name).distinct()
             start = _ms_to_dt(input.start_date)
             end = _ms_to_dt(input.end_date)
             if start:
-                stmt = stmt.where(AaEnlistActivity.activity_start_time >= start)
+                stmt = stmt.where(IaoEnlistActivity.activity_start_time >= start)
             if end:
-                stmt = stmt.where(AaEnlistActivity.activity_start_time <= end)
+                stmt = stmt.where(IaoEnlistActivity.activity_start_time <= end)
             if input.fuzzy_name:
-                stmt = stmt.where(AaEnlistActivity.name.like(f"%{input.fuzzy_name}%"))
+                stmt = stmt.where(IaoEnlistActivity.name.like(f"%{input.fuzzy_name}%"))
             result = await session.execute(stmt)
             names = [r[0] for r in result.all()]
             total = len(names)
@@ -1097,8 +1097,8 @@ async def view_fuzzy_export_activity_name(info: Info, input: FuzzyNameInput) -> 
     maker = get_session()
     async with maker() as session:
         try:
-            result = await session.execute(select(AaEnlistActivity.name).where(
-                AaEnlistActivity.name.startswith(input.fuzzy_name)
+            result = await session.execute(select(IaoEnlistActivity.name).where(
+                IaoEnlistActivity.name.startswith(input.fuzzy_name)
             ).distinct())
             return _resp(200, "success", {"name_list": [r[0] for r in result.all()]})
         except Exception as e:
@@ -1149,16 +1149,16 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
                     apply_end = pd.to_datetime(row["apply_end_time"]).to_pydatetime()
                     name = str(row["activity_name"]) if pd.notna(row["activity_name"]) else "N/A"
 
-                    project = await _first(session, select(AaEnlistProject).where(
-                        AaEnlistProject.name == project_name
+                    project = await _first(session, select(IaoEnlistProject).where(
+                        IaoEnlistProject.name == project_name
                     ))
                     if not project:
                         fail_count += 1
                         continue
 
-                    existing = await _first(session, select(AaEnlistActivity).where(
-                        AaEnlistActivity.project_id == project.id,
-                        AaEnlistActivity.activity_start_time == start_time,
+                    existing = await _first(session, select(IaoEnlistActivity).where(
+                        IaoEnlistActivity.project_id == project.id,
+                        IaoEnlistActivity.activity_start_time == start_time,
                     ))
                     if existing:
                         existing.name = name
@@ -1167,7 +1167,7 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
                         existing.apply_end_time = apply_end
                         existing.update = datetime.now()
                     else:
-                        session.add(AaEnlistActivity(
+                        session.add(IaoEnlistActivity(
                             name=name,
                             project_id=project.id,
                             activity_start_time=start_time,
@@ -1196,7 +1196,7 @@ def _build_template_xlsx() -> bytes:
     ws.title = "Schedule Template"
     ws.append(UPLOAD_COLUMNS)
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    for day in range(14):
+    for day in range(3):
         base = today + timedelta(days=day, hours=9)
         ws.append([
             "<Project Name>",
@@ -1248,15 +1248,15 @@ def _build_export_xlsx(rows: list[dict]) -> bytes:
 
 async def _query_applies(session: AsyncSession, titles: list[str],
                          start: datetime | None, end: datetime | None) -> list[dict]:
-    stmt = select(AaEnlistApply, AaEnlistActivity).join(
-        AaEnlistActivity, AaEnlistApply.activity_id == AaEnlistActivity.id
-    ).order_by(desc(AaEnlistApply.time))
+    stmt = select(IaoEnlistApply, IaoEnlistActivity).join(
+        IaoEnlistActivity, IaoEnlistApply.activity_id == IaoEnlistActivity.id
+    ).order_by(desc(IaoEnlistApply.time))
     if titles:
-        stmt = stmt.where(AaEnlistActivity.name.in_(titles))
+        stmt = stmt.where(IaoEnlistActivity.name.in_(titles))
     if start:
-        stmt = stmt.where(AaEnlistActivity.activity_start_time >= start)
+        stmt = stmt.where(IaoEnlistActivity.activity_start_time >= start)
     if end:
-        stmt = stmt.where(AaEnlistActivity.activity_start_time <= end)
+        stmt = stmt.where(IaoEnlistActivity.activity_start_time <= end)
     result = await session.execute(stmt)
     return [_apply_dict(a, act) for a, act in result.all()]
 
@@ -1285,7 +1285,7 @@ async def view_search_query_title(info: Info) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
-            result = await session.execute(select(AaEnlistActivity.name).distinct())
+            result = await session.execute(select(IaoEnlistActivity.name).distinct())
             return _resp(200, "success", {"title_list": [r[0] for r in result.all()]})
         except Exception as e:
             logger.error(f"{_rid()}{e}")

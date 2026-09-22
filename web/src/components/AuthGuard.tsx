@@ -17,7 +17,7 @@ export default function AuthGuard({
   useEffect(() => {
     if (user === null) {
       const timer = setTimeout(() => {
-        const raw = localStorage.getItem("aa_user");
+        const raw = localStorage.getItem("iao_user");
         if (!raw) router.replace("/login");
       }, 300);
       return () => clearTimeout(timer);

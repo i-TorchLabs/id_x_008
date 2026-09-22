@@ -29,11 +29,11 @@ def get_session() -> async_sessionmaker[AsyncSession]:
     return _session_maker
 
 
-# ===== 业务模型区（SME IAO 预约系统，aa_enlist_* 表族） =====
+# ===== 业务模型区（SME IAO 预约系统，iao_enlist_* 表族） =====
 
 
-class AaEnlistUser(Base):
-    __tablename__ = "aa_enlist_user"
+class IaoEnlistUser(Base):
+    __tablename__ = "iao_enlist_user"
     __table_args__ = {"comment": "用户表"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="ID")
@@ -51,8 +51,8 @@ class AaEnlistUser(Base):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
-class AaEnlistContent(Base):
-    __tablename__ = "aa_enlist_content"
+class IaoEnlistContent(Base):
+    __tablename__ = "iao_enlist_content"
     __table_args__ = {"comment": "内容表"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="ID")
@@ -60,8 +60,8 @@ class AaEnlistContent(Base):
     time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=datetime.now, comment="时间")
 
 
-class AaEnlistProject(Base):
-    __tablename__ = "aa_enlist_project"
+class IaoEnlistProject(Base):
+    __tablename__ = "iao_enlist_project"
     __table_args__ = {"comment": "项目表"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="ID")
@@ -69,7 +69,7 @@ class AaEnlistProject(Base):
     quota: Mapped[str] = mapped_column(String(255), nullable=False, default="N/A", comment="名额")
     content: Mapped[str] = mapped_column(Text, nullable=False, default="N/A", comment="内容")
     content_ex_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("aa_enlist_content.id"), nullable=True, comment="内容扩展ID"
+        Integer, ForeignKey("iao_enlist_content.id"), nullable=True, comment="内容扩展ID"
     )
     owner: Mapped[str] = mapped_column(String(255), nullable=False, default="N/A", comment="拥有者")
     update: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=datetime.now, comment="更新")
@@ -79,14 +79,14 @@ class AaEnlistProject(Base):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
-class AaEnlistActivity(Base):
-    __tablename__ = "aa_enlist_activity"
+class IaoEnlistActivity(Base):
+    __tablename__ = "iao_enlist_activity"
     __table_args__ = {"comment": "活动表"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="ID")
     name: Mapped[str] = mapped_column(String(255), nullable=False, default="N/A", comment="名称")
     project_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("aa_enlist_project.id"), nullable=True, comment="项目ID"
+        Integer, ForeignKey("iao_enlist_project.id"), nullable=True, comment="项目ID"
     )
     activity_start_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, comment="活动开始时间")
     activity_end_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, comment="活动结束时间")
@@ -96,16 +96,16 @@ class AaEnlistActivity(Base):
     update: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=datetime.now, comment="更新")
 
 
-class AaEnlistApply(Base):
-    __tablename__ = "aa_enlist_apply"
+class IaoEnlistApply(Base):
+    __tablename__ = "iao_enlist_apply"
     __table_args__ = {"comment": "报名表"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="ID")
     project_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("aa_enlist_project.id"), nullable=True, comment="项目ID"
+        Integer, ForeignKey("iao_enlist_project.id"), nullable=True, comment="项目ID"
     )
     activity_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("aa_enlist_activity.id"), nullable=True, comment="活动ID"
+        Integer, ForeignKey("iao_enlist_activity.id"), nullable=True, comment="活动ID"
     )
     user_id: Mapped[str] = mapped_column(String(255), nullable=False, default="N/A", comment="用户ID")
     order: Mapped[str] = mapped_column(String(255), nullable=False, default="N/A", comment="订单号")
@@ -126,8 +126,8 @@ class AaEnlistApply(Base):
     send_question: Mapped[str] = mapped_column(String(255), nullable=False, default="False", comment="发送问卷调查")
 
 
-class AaHtmlTemplate(Base):
-    __tablename__ = "aa_html_template"
+class IaoHtmlTemplate(Base):
+    __tablename__ = "iao_html_template"
     __table_args__ = {"comment": "HTML模板"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="ID")
@@ -136,8 +136,8 @@ class AaHtmlTemplate(Base):
     html: Mapped[str] = mapped_column(Text, nullable=False, default="N/A", comment="HTML")
 
 
-class AaOwnerInfo(Base):
-    __tablename__ = "aa_owner_info"
+class IaoOwnerInfo(Base):
+    __tablename__ = "iao_owner_info"
     __table_args__ = {"comment": "顾问信息"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="ID")

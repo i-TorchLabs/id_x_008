@@ -19,8 +19,8 @@ if str(_REPO_ROOT) not in sys.path:
 from sqlalchemy import select, update  # noqa: E402
 
 from x_models.id_x_008.src.models.x_models import (  # noqa: E402
-    AaEnlistActivity,
-    AaEnlistApply,
+    IaoEnlistActivity,
+    IaoEnlistApply,
     get_session,
 )
 from x_models.id_x_008.src.views.x_views import MAIL_FROM, _send_mail  # noqa: E402
@@ -34,11 +34,11 @@ async def run() -> None:
 
     maker = get_session()
     async with maker() as session:
-        result = await session.execute(select(AaEnlistApply, AaEnlistActivity).join(
-            AaEnlistActivity, AaEnlistApply.activity_id == AaEnlistActivity.id
+        result = await session.execute(select(IaoEnlistApply, IaoEnlistActivity).join(
+            IaoEnlistActivity, IaoEnlistApply.activity_id == IaoEnlistActivity.id
         ).where(
-            AaEnlistActivity.activity_end_time <= threshold,
-            AaEnlistApply.send_question != "True",
+            IaoEnlistActivity.activity_end_time <= threshold,
+            IaoEnlistApply.send_question != "True",
         ))
         # 预取为纯值快照，避免循环内 commit/rollback 后访问失效的 ORM 对象属性
         # （rollback 会使 session 内对象过期，async 下同步属性读取触发 MissingGreenlet）
@@ -55,7 +55,7 @@ async def run() -> None:
                 )
                 if _send_mail(subject, MAIL_FROM, mail_to, "", html):
                     await session.execute(
-                        update(AaEnlistApply).where(AaEnlistApply.id == apply_id)
+                        update(IaoEnlistApply).where(IaoEnlistApply.id == apply_id)
                         .values(send_question="True")
                     )
                     await session.commit()

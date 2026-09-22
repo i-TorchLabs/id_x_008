@@ -24,10 +24,12 @@ const FIELDS: { key: keyof Omit<ActivityFormValue, "project_id" | "activity_name
 export default function ActivityForm({
   initial,
   onSubmit,
+  onCancel,
   submitText = "Save",
 }: {
   initial?: Partial<ActivityFormValue>;
   onSubmit: (v: ActivityFormValue) => Promise<void>;
+  onCancel?: () => void;
   submitText?: string;
 }) {
   const [value, setValue] = useState<ActivityFormValue>({
@@ -92,7 +94,8 @@ export default function ActivityForm({
           />
         </div>
       ))}
-      <div style={{ paddingTop: "8px" }}>
+      <div style={{ paddingTop: "8px", display: "flex", justifyContent: "space-between" }}>
+        {onCancel && <PillButton type="button" disabled={busy} onClick={onCancel}>Cancel</PillButton>}
         <PillButton primary disabled={busy}>
           {busy ? "Saving..." : submitText}
         </PillButton>

@@ -16,10 +16,12 @@ export interface ProjectFormValue {
 export default function ProjectForm({
   initial,
   onSubmit,
+  onCancel,
   submitText = "Save",
 }: {
   initial?: Partial<ProjectFormValue>;
   onSubmit: (v: ProjectFormValue) => Promise<void>;
+  onCancel?: () => void;
   submitText?: string;
 }) {
   const [value, setValue] = useState<ProjectFormValue>({
@@ -90,7 +92,8 @@ export default function ProjectForm({
           onChange={(html) => setValue({ ...value, project_content: html })}
         />
       </div>
-      <div style={{ paddingTop: "8px" }}>
+      <div style={{ paddingTop: "8px", display: "flex", justifyContent: "space-between" }}>
+        {onCancel && <PillButton type="button" disabled={busy} onClick={onCancel}>Cancel</PillButton>}
         <PillButton primary disabled={busy}>
           {busy ? "Saving..." : submitText}
         </PillButton>

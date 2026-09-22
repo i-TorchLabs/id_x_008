@@ -3,7 +3,7 @@
 
 环境变量：
     DB_HOST / DB_PORT / DB_NAME / DB_USERNAME / DB_PASSWORD
-凭据允许为密文（encrypt_util 加密），设置 AA_DB_ENCRYPTED=true 时自动解密。
+凭据允许为密文（encrypt_util 加密），设置 IAO_DB_ENCRYPTED=true 时自动解密。
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ _session_maker: async_sessionmaker[AsyncSession] | None = None
 
 
 def _credential(value: str) -> str:
-    if os.environ.get("AA_DB_ENCRYPTED", "").lower() == "true":
+    if os.environ.get("IAO_DB_ENCRYPTED", "").lower() == "true":
         return decrypt(value)
     return value
 

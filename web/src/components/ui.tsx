@@ -39,6 +39,7 @@ export const PillButton = ({
   primary,
   danger,
   small,
+  type,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
@@ -46,8 +47,10 @@ export const PillButton = ({
   primary?: boolean;
   danger?: boolean;
   small?: boolean;
+  type?: "button" | "submit" | "reset";
 }) => (
   <button
+    type={type}
     onClick={onClick}
     disabled={disabled}
     className="transition-opacity duration-150 hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -244,7 +247,7 @@ export const ErrorText = ({ children }: { children: React.ReactNode }) => (
 export const LoadingDots = ({ size = "md" }: { size?: "sm" | "md" }) => {
   const d = size === "sm" ? 4 : 6;
   return (
-    <span className="aa-loading-dots" style={{ display: "inline-flex", gap: d }}>
+    <span className="iao-loading-dots" style={{ display: "inline-flex", gap: d }}>
       {[0, 1, 2].map((i) => (
         <span
           key={i}
@@ -253,7 +256,7 @@ export const LoadingDots = ({ size = "md" }: { size?: "sm" | "md" }) => {
             height: d,
             borderRadius: "50%",
             background: "currentColor",
-            animation: `aa-dot-pulse 1.2s ease-in-out ${i * 0.15}s infinite`,
+            animation: `iao-dot-pulse 1.2s ease-in-out ${i * 0.15}s infinite`,
           }}
         />
       ))}
@@ -630,28 +633,29 @@ export const DateTimePicker = ({
                 <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
               ))}
             </select>
-            <div className="ml-auto flex gap-2">
-              <PillButton
-                small
-                onClick={() => {
-                  onChange(fmtIso(new Date()));
-                }}
-              >
-                Now
-              </PillButton>
-              <PillButton
-                small
-                onClick={() => {
-                  onChange("");
-                  setOpen(false);
-                }}
-              >
-                Clear
-              </PillButton>
-              <PillButton small primary onClick={() => setOpen(false)}>
-                OK
-              </PillButton>
-            </div>
+          </div>
+          {/* 操作按钮 */}
+          <div className="flex justify-end gap-2" style={{ marginTop: "8px" }}>
+            <PillButton
+              small
+              onClick={() => {
+                onChange(fmtIso(new Date()));
+              }}
+            >
+              Now
+            </PillButton>
+            <PillButton
+              small
+              onClick={() => {
+                onChange("");
+                setOpen(false);
+              }}
+            >
+              Clear
+            </PillButton>
+            <PillButton small primary onClick={() => setOpen(false)}>
+              OK
+            </PillButton>
           </div>
         </div>,
         document.body

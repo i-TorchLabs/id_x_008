@@ -18,8 +18,8 @@ if str(_REPO_ROOT) not in sys.path:
 from sqlalchemy import select  # noqa: E402
 
 from x_models.id_x_008.src.models.x_models import (  # noqa: E402
-    AaEnlistActivity,
-    AaEnlistApply,
+    IaoEnlistActivity,
+    IaoEnlistApply,
     get_session,
 )
 from x_models.id_x_008.src.views.x_views import MAIL_FROM, _send_mail  # noqa: E402
@@ -33,11 +33,11 @@ async def run() -> None:
 
     maker = get_session()
     async with maker() as session:
-        result = await session.execute(select(AaEnlistApply, AaEnlistActivity).join(
-            AaEnlistActivity, AaEnlistApply.activity_id == AaEnlistActivity.id
+        result = await session.execute(select(IaoEnlistApply, IaoEnlistActivity).join(
+            IaoEnlistActivity, IaoEnlistApply.activity_id == IaoEnlistActivity.id
         ).where(
-            AaEnlistActivity.activity_start_time >= day_start,
-            AaEnlistActivity.activity_start_time < day_end,
+            IaoEnlistActivity.activity_start_time >= day_start,
+            IaoEnlistActivity.activity_start_time < day_end,
         ))
         for apply_obj, activity in result.all():
             try:

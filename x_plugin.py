@@ -86,5 +86,5 @@ def create_app() -> Any:
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.environ.get("AA_PORT", "8101"))
+    port = int(os.environ.get("IAO_PORT", "8101"))
     uvicorn.run(create_app(), host="0.0.0.0", port=port)

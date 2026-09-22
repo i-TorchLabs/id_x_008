@@ -98,7 +98,7 @@ code {
 }
 
 /* ── Apple 风格通用控件类 ── */
-.aa-input {
+.iao-input {
     width: 100%;
     font-size: 16px;
     letter-spacing: -0.2px;
@@ -110,15 +110,15 @@ code {
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.aa-input:focus {
+.iao-input:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(118, 56, 144, 0.15);
 }
-.aa-input::placeholder {
+.iao-input::placeholder {
     color: rgba(0, 0, 0, 0.35);
 }
 
-.aa-label {
+.iao-label {
     display: block;
     margin-bottom: 8px;
     font-size: 13px;
@@ -128,7 +128,7 @@ code {
     color: rgba(0, 0, 0, 0.45);
 }
 
-.aa-btn-primary {
+.iao-btn-primary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -144,15 +144,15 @@ code {
     cursor: pointer;
     transition: background-color 0.2s ease, opacity 0.2s ease;
 }
-.aa-btn-primary:hover {
+.iao-btn-primary:hover {
     background-color: var(--color-primary-deep);
 }
-.aa-btn-primary:disabled {
+.iao-btn-primary:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-.aa-btn-ghost {
+.iao-btn-ghost {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -168,18 +168,18 @@ code {
     cursor: pointer;
     transition: background-color 0.2s ease;
 }
-.aa-btn-ghost:hover {
+.iao-btn-ghost:hover {
     background-color: rgba(118, 56, 144, 0.06);
 }
 
-.aa-card {
+.iao-card {
     background: var(--bg-primary);
     border-radius: 18px;
     box-shadow: var(--shadow-card);
 }
 
 /* 毛玻璃导航 */
-.aa-nav-blur {
+.iao-nav-blur {
     background: rgba(255, 255, 255, 0.72);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
@@ -193,7 +193,7 @@ code {
 }
 
 /* ── LoadingDots 三点脉冲 ── */
-@keyframes aa-dot-pulse {
+@keyframes iao-dot-pulse {
     0%, 80%, 100% { opacity: 0.25; transform: scale(0.8); }
     40% { opacity: 1; transform: scale(1); }
 }
@@ -212,10 +212,30 @@ code {
 }
 
 /* ── 弹层淡入 ── */
-@keyframes aa-fade-in {
+@keyframes iao-fade-in {
     from { opacity: 0; transform: translateY(10px) scale(0.995); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.aa-fade-in {
-    animation: aa-fade-in 0.35s cubic-bezier(0.25, 0.4, 0.25, 1);
+.iao-fade-in {
+    animation: iao-fade-in 0.35s cubic-bezier(0.25, 0.4, 0.25, 1);
 }
+
+/* ── Quill 富文本编辑器：自定义字号下拉标签 ── */
+/* quill.snow.css 默认对所有 size 选项显示 'Normal'，仅有 small/large/huge 的覆盖。 */
+/* 这里为 inline-style 自定义字号补上 data-value 对应的显示文本。 */
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: '12px'; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: '14px'; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="16px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="16px"]::before { content: '16px'; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: '18px'; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: '20px'; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: '24px'; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="28px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="28px"]::before { content: '28px'; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="32px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="32px"]::before { content: '32px'; }

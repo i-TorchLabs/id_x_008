@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import os
 
-_SECRET_KEY = os.environ.get("AA_SECRET_KEY", "id_x_008_secret_key")
+_SECRET_KEY = os.environ.get("IAO_SECRET_KEY", "id_x_008_secret_key")
 
 
 def decrypt(encrypted_b64: str) -> str:

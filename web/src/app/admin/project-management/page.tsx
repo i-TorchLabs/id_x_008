@@ -130,6 +130,7 @@ export default function ProjectManagementPage() {
         <ProjectForm
           initial={editing ?? undefined}
           onSubmit={creating ? submitCreate : submitUpdate}
+          onCancel={() => { setCreating(false); setEditing(null); }}
         />
       </Modal>
 

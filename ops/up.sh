@@ -62,10 +62,10 @@ if ! podman container exists "${PLUGIN}_service"; then
         -e DB_PORT=5432 \
         -e DB_USERNAME="${POSTGRES_USER}" \
         -e DB_PASSWORD="${POSTGRES_PASSWORD}" \
-        -e AA_DB_ENCRYPTED="${AA_DB_ENCRYPTED:-}" \
-        -e AA_SECRET_KEY="${AA_SECRET_KEY:-}" \
-        -e AA_MAIL_PASSWORD="${AA_MAIL_PASSWORD:-}" \
-        -e AA_PORT=8101 \
+        -e IAO_DB_ENCRYPTED="${IAO_DB_ENCRYPTED:-}" \
+        -e IAO_SECRET_KEY="${IAO_SECRET_KEY:-}" \
+        -e IAO_MAIL_PASSWORD="${IAO_MAIL_PASSWORD:-}" \
+        -e IAO_PORT=8101 \
         -e PROJECT_PATH=/app/i-Core \
         -v "${OPS_DIR}/../logs:/app/i-Core/logs" \
         "${PLUGIN}_service"

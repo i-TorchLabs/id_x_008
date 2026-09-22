@@ -22,8 +22,8 @@ const UserContext = createContext<UserContextValue>({
   logoutLocal: () => undefined,
 });
 
-const STORAGE_KEY = "aa_user";
-const TOKEN_KEY = "aa_token";
+const STORAGE_KEY = "iao_user";
+const TOKEN_KEY = "iao_token";
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<UserInfo | null>(null);
