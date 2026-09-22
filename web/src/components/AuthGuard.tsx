@@ -22,7 +22,10 @@ export default function AuthGuard({
       }, 300);
       return () => clearTimeout(timer);
     }
-    if (user.role !== role) router.replace("/login");
+    if (user.role !== role) {
+      // 已登录但角色不符：跳回各自首页，而非登录页
+      router.replace(role === "admin" ? "/user/home" : "/admin/project-management");
+    }
   }, [user, role, router]);
 
   if (!user || user.role !== role) {

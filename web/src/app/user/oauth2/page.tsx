@@ -13,12 +13,14 @@ function OauthInner() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let ignore = false;
     const token = params.get("token") ?? params.get("code") ?? "";
     if (!token) {
       setError("Missing SSO Token");
       return;
     }
     userOauth(token).then((res) => {
+      if (ignore) return;
       if (res.code === 200 && res.parsed) {
         const d = res.parsed as { user_id: number; name: string; token: string };
         setUser({ user_id: d.user_id, name: d.name, role: "user", token: d.token });
@@ -27,6 +29,7 @@ function OauthInner() {
         setError(res.message || "SSO login failed");
       }
     });
+    return () => { ignore = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

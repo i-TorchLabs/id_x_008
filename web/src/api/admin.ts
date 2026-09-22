@@ -22,7 +22,7 @@ export async function logout() {
 }
 
 // ----- 项目 -----
-export async function getProjectList(input: { offset?: number; limit?: number }) {
+export async function getProjectList(input: { offset?: number; limit?: number; sort_order?: "asc" | "desc" }) {
   return gql<{ total: number; list: ProjectItem[] }>(`query ($input: PageInput!) {
     get_project_list(input: $input) { code message data }
   }`, { input });
@@ -65,6 +65,7 @@ export async function getProjectNameList() {
 // ----- 活动 -----
 export async function getActivityList(input: {
   offset?: number; limit?: number; start_date?: string | null; end_date?: string | null;
+  sort_order?: "asc" | "desc";
 }) {
   return gql<{ total: number; list: Record<string, unknown>[] }>(`query ($input: PageInput!) {
     get_activity_list(input: $input) { code message data }

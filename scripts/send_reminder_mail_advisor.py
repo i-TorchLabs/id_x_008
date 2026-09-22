@@ -15,7 +15,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import func, select  # noqa: E402
 
 from x_models.id_x_008.src.models.x_models import (  # noqa: E402
     AaEnlistActivity,
@@ -54,8 +54,8 @@ async def run() -> None:
                     logger.warning(f"顾问信息缺失（project={project.id}），跳过提醒邮件")
                     continue
                 count = await session.scalar(select(
-                    AaEnlistApply.id
-                ).where(AaEnlistApply.activity_id == activity.id))
+                    func.count()
+                ).select_from(AaEnlistApply).where(AaEnlistApply.activity_id == activity.id))
                 subject = f"咨询预约日程提醒-[{activity.name}]"
                 html = (
                     f"<p>Dear {owner.name},</p>"

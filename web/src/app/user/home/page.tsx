@@ -90,8 +90,8 @@ export default function UserHomePage() {
           </div>
           <RadioButtonGroup
             options={[
-              { value: "calendar", label: "calendar" },
-              { value: "list", label: "list" },
+              { value: "list", label: "List" },
+              { value: "calendar", label: "Calendar" },
             ]}
             value={view}
             onChange={setView}

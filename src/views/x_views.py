@@ -12,6 +12,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 import hashlib
@@ -146,7 +147,7 @@ async def _get_user_by_token(info: Info) -> AaEnlistUser | None:
         async with maker() as session:
             return await _first(session, select(AaEnlistUser).where(AaEnlistUser.key == token))
     except Exception as e:
-        logger.error(f"{_rid()}Token验证失败: {e}")
+        logger.error(f"{_rid()}Token verification failed: {e}")
         return None
 
 
@@ -175,7 +176,7 @@ def _hash_password(raw: str) -> str:
 def _activity_status(apply_count: int, quota: int, activity: AaEnlistActivity) -> str:
     """活动状态机：Open -> Full -> Closed。
 
-    Closed：报名截止已过，或活动已开始/结束；
+    Closed：报名截止已过，或活动已开始/结束，或报名尚未开放；
     Full：报名数 >= 名额；
     Open：其余。
     """
@@ -187,7 +188,7 @@ def _activity_status(apply_count: int, quota: int, activity: AaEnlistActivity) -
     if activity.apply_end_time and now >= activity.apply_end_time:
         return STATUS_CLOSED
     if activity.apply_start_time and now < activity.apply_start_time:
-        return STATUS_OPEN
+        return STATUS_CLOSED
     if quota > 0 and apply_count >= quota:
         return STATUS_FULL
     return STATUS_OPEN
@@ -210,8 +211,13 @@ def _send_mail(mail_subject: str, mail_from: str, mail_to: str, mail_cc: str, ma
             server.sendmail(mail_from, [mail_to] + ([mail_cc] if mail_cc else []), msg.as_string())
         return True
     except Exception as e:
-        logger.error(f"{_rid()}邮件发送失败（不影响主流程）: to={mail_to} subject={mail_subject} err={e}")
+        logger.error(f"{_rid()}Email sending failed (does not affect main flow): to={mail_to} subject={mail_subject} err={e}")
         return False
+
+
+async def _send_mail_async(mail_subject: str, mail_from: str, mail_to: str, mail_cc: str, mail_html: str) -> bool:
+    """异步封装：在线程池中执行阻塞 SMTP，避免占用事件循环。"""
+    return await asyncio.to_thread(_send_mail, mail_subject, mail_from, mail_to, mail_cc, mail_html)
 
 
 def _log_mail(message: str, mail_to: str, subject: str) -> None:
@@ -299,7 +305,7 @@ async def view_login(info: Info, input: LoginInput) -> ResponseType:
                 AaEnlistUser.role == "admin",
             ))
             if not user or user.password != _hash_password(input.password):
-                return _resp(403, "用户名或密码错误")
+                return _resp(403, "Invalid username or password")
             token = _new_token()
             user.key = token
             user.time = datetime.now()
@@ -313,7 +319,7 @@ async def view_login(info: Info, input: LoginInput) -> ResponseType:
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_logout(info: Info) -> ResponseType:
@@ -331,7 +337,7 @@ async def view_logout(info: Info) -> ResponseType:
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_user_oauth(info: Info, input: OauthInput) -> ResponseType:
@@ -344,12 +350,12 @@ async def view_user_oauth(info: Info, input: OauthInput) -> ResponseType:
         padded = input.oauth_token + "=" * (-len(input.oauth_token) % 4)
         profile = json.loads(base64.b64decode(padded).decode("utf-8"))
     except (ValueError, binascii.Error) as e:
-        logger.error(f"{_rid()}SSO token 解析失败: {e}")
-        return _resp(400, "SSO Token 格式错误")
+        logger.error(f"{_rid()}SSO token parsing failed: {e}")
+        return _resp(400, "Invalid SSO Token format")
 
     number = str(profile.get("number", "")).strip()
     if not number:
-        return _resp(400, "SSO Token 缺少学号字段")
+        return _resp(400, "SSO Token missing student ID field")
 
     maker = get_session()
     async with maker() as session:
@@ -381,7 +387,7 @@ async def view_user_oauth(info: Info, input: OauthInput) -> ResponseType:
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 # ===== 学生端 · 活动浏览 =====
@@ -413,7 +419,7 @@ async def view_get_user_activity_list(info: Info, input: UserActivityListInput) 
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_search_user_activity(info: Info, input: SearchUserActivityInput) -> ResponseType:
@@ -443,7 +449,7 @@ async def view_get_user_activity_detail(info: Info, input: ActivityDetailInput) 
                 AaEnlistActivity.id == int(input.activity_id)
             ))
             if not activity:
-                return _resp(404, "活动不存在")
+                return _resp(404, "Activity not found")
             project = await _first(session, select(AaEnlistProject).where(
                 AaEnlistProject.id == activity.project_id
             ))
@@ -456,7 +462,7 @@ async def view_get_user_activity_detail(info: Info, input: ActivityDetailInput) 
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_fuzzy_activity_name(info: Info, input: FuzzyNameInput) -> ResponseType:
@@ -470,7 +476,7 @@ async def view_fuzzy_activity_name(info: Info, input: FuzzyNameInput) -> Respons
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 # ===== 学生端 · 报名 / 取消 =====
@@ -483,15 +489,27 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
             user_id_str = str(input.user_id)
             activity = await _first(session, select(AaEnlistActivity).where(
                 AaEnlistActivity.id == int(input.activity_id)
-            ))
+            ).with_for_update())
             if not activity:
-                return _resp(404, "活动不存在")
+                return _resp(404, "Activity not found")
             user = await _first(session, select(AaEnlistUser).where(AaEnlistUser.id == input.user_id))
             if not user:
-                return _resp(404, "用户不存在")
+                return _resp(404, "User not found")
 
-            # 规则：开始前 24 小时截止报名
             now = datetime.now()
+            # 规则：报名尚未开放
+            if activity.apply_start_time and now < activity.apply_start_time:
+                return _resp(403, "Registration has not opened yet.", {
+                    "activity_id": input.activity_id,
+                    "activity_name": activity.name,
+                })
+            # 规则：报名已截止（apply_end_time）
+            if activity.apply_end_time and now >= activity.apply_end_time:
+                return _resp(403, "Registration has ended.", {
+                    "activity_id": input.activity_id,
+                    "activity_name": activity.name,
+                })
+            # 规则：开始前 24 小时截止报名（硬性截止线）
             if activity.activity_start_time and now >= activity.activity_start_time - timedelta(hours=APPLY_DEADLINE_HOURS):
                 return _resp(403, "Registration closes 24 hours before the activity starts.", {
                     "activity_id": input.activity_id,
@@ -529,6 +547,20 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
             if quota > 0 and count >= quota:
                 return _resp(403, "This activity is full.", {"activity_id": input.activity_id})
 
+            # 规则：咨询话题唯一（同一活动内不可重复选择已被占用的话题）
+            topic = (input.info_1 or "").strip()
+            if topic and topic != "N/A":
+                dup = await _first(session, select(AaEnlistApply).where(
+                    AaEnlistApply.activity_id == activity.id,
+                    AaEnlistApply.info_1 == topic,
+                ))
+                if dup:
+                    return _resp(403, "This topic has already been selected.", {
+                        "activity_id": input.activity_id,
+                        "activity_name": activity.name,
+                        "topic": topic,
+                    })
+
             obj = AaEnlistApply(
                 project_id=activity.project_id,
                 activity_id=activity.id,
@@ -547,36 +579,39 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
             session.add(obj)
             await session.commit()
 
-            # 邮件通知（学生 + 顾问）；失败仅记录日志
-            msg = {
-                "_title": activity.name,
-                "_date": activity.activity_start_time.strftime("%Y-%m-%d") if activity.activity_start_time else "",
-                "_start_time": activity.activity_start_time.strftime("%H:%M") if activity.activity_start_time else "",
-                "_end_time": activity.activity_end_time.strftime("%H:%M") if activity.activity_end_time else "",
-            }
-            template = await _first(session, select(AaHtmlTemplate).where(AaHtmlTemplate.type == "submit"))
-            mail_html = template.html.format(**msg) if template else json.dumps(msg, ensure_ascii=False)
-            _send_mail("Your sign-up: successful", MAIL_FROM, user.email, "", mail_html)
-            _log_mail("Send Apply Email To Student Successful.", user.email, "Your sign-up: successful")
+            # 邮件通知（学生 + 顾问）；失败仅记录日志，不影响已提交的报名
+            try:
+                msg = {
+                    "_title": activity.name,
+                    "_date": activity.activity_start_time.strftime("%Y-%m-%d") if activity.activity_start_time else "",
+                    "_start_time": activity.activity_start_time.strftime("%H:%M") if activity.activity_start_time else "",
+                    "_end_time": activity.activity_end_time.strftime("%H:%M") if activity.activity_end_time else "",
+                }
+                template = await _first(session, select(AaHtmlTemplate).where(AaHtmlTemplate.type == "submit"))
+                mail_html = template.html.format(**msg) if template else json.dumps(msg, ensure_ascii=False)
+                await _send_mail_async("Your sign-up: successful", MAIL_FROM, user.email, "", mail_html)
+                _log_mail("Send Apply Email To Student Successful.", user.email, "Your sign-up: successful")
 
-            owner = await _first(session, select(AaOwnerInfo).where(
-                AaOwnerInfo.name == (project.owner if project else "")
-            )) if project else None
-            if owner and owner.email:
-                ex_msg = {**msg, "_teacher_name": owner.name, "_student_name": user.name}
-                template = await _first(session, select(AaHtmlTemplate).where(AaHtmlTemplate.type == "submit_ex"))
-                ex_html = template.html.format(**ex_msg) if template else json.dumps(ex_msg, ensure_ascii=False)
-                subject = f"咨询预约提醒-[{user.name}]"
-                _send_mail(subject, MAIL_FROM, owner.email, "", ex_html)
-                _log_mail("Send Apply Email To Advisor Successful.", owner.email, subject)
-            else:
-                logger.warning(f"{_rid()}顾问信息缺失（project={activity.project_id}），跳过顾问通知邮件")
+                owner = await _first(session, select(AaOwnerInfo).where(
+                    AaOwnerInfo.name == (project.owner if project else "")
+                )) if project else None
+                if owner and owner.email:
+                    ex_msg = {**msg, "_teacher_name": owner.name, "_student_name": user.name}
+                    template = await _first(session, select(AaHtmlTemplate).where(AaHtmlTemplate.type == "submit_ex"))
+                    ex_html = template.html.format(**ex_msg) if template else json.dumps(ex_msg, ensure_ascii=False)
+                    subject = f"Consultation reservation reminder-[{user.name}]"
+                    await _send_mail_async(subject, MAIL_FROM, owner.email, "", ex_html)
+                    _log_mail("Send Apply Email To Advisor Successful.", owner.email, subject)
+                else:
+                    logger.warning(f"{_rid()}Advisor info missing (project={activity.project_id}), skip advisor notification email")
+            except Exception as mail_err:
+                logger.error(f"{_rid()}Apply notification email failed (apply saved): {mail_err}")
 
             return _resp(200, "success", _apply_dict(obj, activity))
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_cancel_apply(info: Info, input: CancelApplyInput) -> ResponseType:
@@ -590,7 +625,7 @@ async def view_cancel_apply(info: Info, input: CancelApplyInput) -> ResponseType
                 AaEnlistApply.user_id == str(input.user_id),
             ))
             if not apply_obj:
-                return _resp(404, "报名记录不存在")
+                return _resp(404, "Registration record not found")
             activity = await _first(session, select(AaEnlistActivity).where(
                 AaEnlistActivity.id == apply_obj.activity_id
             ))
@@ -606,35 +641,38 @@ async def view_cancel_apply(info: Info, input: CancelApplyInput) -> ResponseType
             await session.execute(delete(AaEnlistApply).where(AaEnlistApply.id == input.apply_id))
             await session.commit()
 
-            # 邮件通知（学生 + 顾问）；失败仅记录日志
-            if user and activity:
-                msg = {
-                    "_title": activity.name,
-                    "_date": activity.activity_start_time.strftime("%Y-%m-%d") if activity.activity_start_time else "",
-                    "_start_time": activity.activity_start_time.strftime("%H:%M") if activity.activity_start_time else "",
-                    "_end_time": activity.activity_end_time.strftime("%H:%M") if activity.activity_end_time else "",
-                }
-                template = await _first(session, select(AaHtmlTemplate).where(AaHtmlTemplate.type == "cancel"))
-                mail_html = template.html.format(**msg) if template else json.dumps(msg, ensure_ascii=False)
-                _send_mail("Your cancellation: successful", MAIL_FROM, user.email, "", mail_html)
-                _log_mail("Send Cancel Email To Student Successful.", user.email, "Your cancellation: successful")
+            # 邮件通知（学生 + 顾问）；失败仅记录日志，不影响已提交的取消
+            try:
+                if user and activity:
+                    msg = {
+                        "_title": activity.name,
+                        "_date": activity.activity_start_time.strftime("%Y-%m-%d") if activity.activity_start_time else "",
+                        "_start_time": activity.activity_start_time.strftime("%H:%M") if activity.activity_start_time else "",
+                        "_end_time": activity.activity_end_time.strftime("%H:%M") if activity.activity_end_time else "",
+                    }
+                    template = await _first(session, select(AaHtmlTemplate).where(AaHtmlTemplate.type == "cancel"))
+                    mail_html = template.html.format(**msg) if template else json.dumps(msg, ensure_ascii=False)
+                    await _send_mail_async("Your cancellation: successful", MAIL_FROM, user.email, "", mail_html)
+                    _log_mail("Send Cancel Email To Student Successful.", user.email, "Your cancellation: successful")
 
-                project = await _first(session, select(AaEnlistProject).where(
-                    AaEnlistProject.id == activity.project_id
-                ))
-                owner = await _first(session, select(AaOwnerInfo).where(
-                    AaOwnerInfo.name == (project.owner if project else "")
-                )) if project else None
-                if owner and owner.email:
-                    subject = f"咨询取消提醒-[{user.name}]"
-                    _send_mail(subject, MAIL_FROM, owner.email, "", mail_html)
-                    _log_mail("Send Cancel Email To Advisor Successful.", owner.email, subject)
+                    project = await _first(session, select(AaEnlistProject).where(
+                        AaEnlistProject.id == activity.project_id
+                    ))
+                    owner = await _first(session, select(AaOwnerInfo).where(
+                        AaOwnerInfo.name == (project.owner if project else "")
+                    )) if project else None
+                    if owner and owner.email:
+                        subject = f"Consultation cancellation reminder-[{user.name}]"
+                        await _send_mail_async(subject, MAIL_FROM, owner.email, "", mail_html)
+                        _log_mail("Send Cancel Email To Advisor Successful.", owner.email, subject)
+            except Exception as mail_err:
+                logger.error(f"{_rid()}Cancel notification email failed (cancel saved): {mail_err}")
 
             return _resp(200, "success", {"apply_id": input.apply_id})
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 # ===== 管理后台 · 项目 =====
@@ -644,7 +682,9 @@ async def view_get_project_list(info: Info, input: PageInput) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
-            stmt = select(AaEnlistProject).order_by(desc(AaEnlistProject.time))
+            stmt = select(AaEnlistProject).order_by(
+                desc(AaEnlistProject.id) if input.sort_order == "desc" else AaEnlistProject.id
+            )
             start = _ms_to_dt(input.start_date)
             end = _ms_to_dt(input.end_date)
             if start:
@@ -670,7 +710,7 @@ async def view_get_project_list(info: Info, input: PageInput) -> ResponseType:
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_create_project(info: Info, input: CreateProjectInput) -> ResponseType:
@@ -683,7 +723,7 @@ async def view_create_project(info: Info, input: CreateProjectInput) -> Response
                 AaEnlistProject.name == input.project_name
             ))
             if existing:
-                return _resp(403, "项目名称已存在")
+                return _resp(403, "Project name already exists")
             content_obj = AaEnlistContent(content=input.project_content, time=datetime.now())
             session.add(content_obj)
             await session.flush()
@@ -702,7 +742,7 @@ async def view_create_project(info: Info, input: CreateProjectInput) -> Response
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_update_project(info: Info, input: UpdateProjectInput) -> ResponseType:
@@ -715,13 +755,13 @@ async def view_update_project(info: Info, input: UpdateProjectInput) -> Response
                 AaEnlistProject.id == input.project_id
             ))
             if not project:
-                return _resp(404, "项目不存在")
+                return _resp(404, "Project not found")
             duplicate = await _first(session, select(AaEnlistProject).where(
                 AaEnlistProject.name == input.project_name,
                 AaEnlistProject.id != input.project_id,
             ))
             if duplicate:
-                return _resp(403, "项目名称已存在")
+                return _resp(403, "Project name already exists")
             project.name = input.project_name
             project.content = input.project_content
             project.quota = input.quota
@@ -739,7 +779,7 @@ async def view_update_project(info: Info, input: UpdateProjectInput) -> Response
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_delete_project(info: Info, input: ProjectIdInput) -> ResponseType:
@@ -753,7 +793,7 @@ async def view_delete_project(info: Info, input: ProjectIdInput) -> ResponseType
                 AaEnlistProject.id == input.project_id
             ))
             if not project:
-                return _resp(404, "项目不存在")
+                return _resp(404, "Project not found")
             await session.execute(delete(AaEnlistApply).where(AaEnlistApply.project_id == input.project_id))
             await session.execute(delete(AaEnlistActivity).where(AaEnlistActivity.project_id == input.project_id))
             # 先解除项目对 content 的外键引用，再删 content，避免 FK 冲突
@@ -765,7 +805,7 @@ async def view_delete_project(info: Info, input: ProjectIdInput) -> ResponseType
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_search_project(info: Info, input: SearchProjectInput) -> ResponseType:
@@ -790,7 +830,7 @@ async def view_search_project(info: Info, input: SearchProjectInput) -> Response
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_search_project_owner(info: Info) -> ResponseType:
@@ -805,7 +845,7 @@ async def view_search_project_owner(info: Info) -> ResponseType:
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_get_project_name_list(info: Info) -> ResponseType:
@@ -820,7 +860,7 @@ async def view_get_project_name_list(info: Info) -> ResponseType:
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 # ===== 管理后台 · 活动 =====
@@ -830,7 +870,9 @@ async def view_get_activity_list(info: Info, input: PageInput) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
-            stmt = select(AaEnlistActivity).order_by(desc(AaEnlistActivity.activity_start_time))
+            stmt = select(AaEnlistActivity).order_by(
+                desc(AaEnlistActivity.id) if input.sort_order == "desc" else AaEnlistActivity.id
+            )
             start = _ms_to_dt(input.start_date)
             end = _ms_to_dt(input.end_date)
             if start:
@@ -852,7 +894,7 @@ async def view_get_activity_list(info: Info, input: PageInput) -> ResponseType:
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_get_activity_detail(info: Info, input: ActivityIdInput) -> ResponseType:
@@ -866,7 +908,7 @@ async def view_get_activity_detail(info: Info, input: ActivityIdInput) -> Respon
                 AaEnlistActivity.id == input.activity_id
             ))
             if not activity:
-                return _resp(404, "活动不存在")
+                return _resp(404, "Activity not found")
             result = await session.execute(select(AaEnlistApply).where(
                 AaEnlistApply.activity_id == input.activity_id
             ).order_by(desc(AaEnlistApply.time)))
@@ -880,7 +922,7 @@ async def view_get_activity_detail(info: Info, input: ActivityIdInput) -> Respon
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_create_activity(info: Info, input: CreateActivityInput) -> ResponseType:
@@ -893,7 +935,7 @@ async def view_create_activity(info: Info, input: CreateActivityInput) -> Respon
                 AaEnlistProject.id == input.project_id
             ))
             if not project:
-                return _resp(404, "项目不存在")
+                return _resp(404, "Project not found")
             activity = AaEnlistActivity(
                 name=input.activity_name or project.name,
                 project_id=input.project_id,
@@ -910,7 +952,7 @@ async def view_create_activity(info: Info, input: CreateActivityInput) -> Respon
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_update_activity(info: Info, input: UpdateActivityInput) -> ResponseType:
@@ -923,25 +965,34 @@ async def view_update_activity(info: Info, input: UpdateActivityInput) -> Respon
                 AaEnlistActivity.id == input.activity_id
             ))
             if not activity:
-                return _resp(404, "活动不存在")
+                return _resp(404, "Activity not found")
+            project = await _first(session, select(AaEnlistProject).where(
+                AaEnlistProject.id == input.project_id
+            ))
+            if not project:
+                return _resp(404, "Project not found")
             if input.activity_name:
                 activity.name = input.activity_name
             activity.project_id = input.project_id
-            if input.activity_start_time:
-                activity.activity_start_time = _ms_to_dt(input.activity_start_time)
-            if input.activity_end_time:
-                activity.activity_end_time = _ms_to_dt(input.activity_end_time)
-            if input.apply_start_time:
-                activity.apply_start_time = _ms_to_dt(input.apply_start_time)
-            if input.apply_end_time:
-                activity.apply_end_time = _ms_to_dt(input.apply_end_time)
+            # 校验时间戳：提供但解析失败则拒绝，避免静默置空覆盖既有数据
+            for field, raw in {
+                "activity_start_time": input.activity_start_time,
+                "activity_end_time": input.activity_end_time,
+                "apply_start_time": input.apply_start_time,
+                "apply_end_time": input.apply_end_time,
+            }.items():
+                if raw:
+                    parsed = _ms_to_dt(raw)
+                    if parsed is None:
+                        return _resp(400, f"Invalid {field}")
+                    setattr(activity, field, parsed)
             activity.update = datetime.now()
             await session.commit()
             return _resp(200, "success", {"activity_id": activity.id})
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_delete_activity(info: Info, input: ActivityIdInput) -> ResponseType:
@@ -955,7 +1006,7 @@ async def view_delete_activity(info: Info, input: ActivityIdInput) -> ResponseTy
                 AaEnlistActivity.id == input.activity_id
             ))
             if not activity:
-                return _resp(404, "活动不存在")
+                return _resp(404, "Activity not found")
             await session.execute(delete(AaEnlistApply).where(AaEnlistApply.activity_id == input.activity_id))
             await session.execute(delete(AaEnlistActivity).where(AaEnlistActivity.id == input.activity_id))
             await session.commit()
@@ -963,7 +1014,7 @@ async def view_delete_activity(info: Info, input: ActivityIdInput) -> ResponseTy
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_search_activity(info: Info, input: SearchActivityInput) -> ResponseType:
@@ -985,7 +1036,7 @@ async def _search_activity_by_name(info: Info, input: SearchActivityInput) -> Re
         try:
             stmt = select(AaEnlistActivity).where(
                 AaEnlistActivity.name.like(f"%{input.fuzzy_name}%")
-            ).order_by(desc(AaEnlistActivity.activity_start_time))
+            ).order_by(AaEnlistActivity.id)
             start = _ms_to_dt(input.start_date)
             end = _ms_to_dt(input.end_date)
             if start:
@@ -1007,7 +1058,7 @@ async def _search_activity_by_name(info: Info, input: SearchActivityInput) -> Re
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_get_activity_name_list(info: Info, input: ActivityNameListInput) -> ResponseType:
@@ -1037,7 +1088,7 @@ async def view_get_activity_name_list(info: Info, input: ActivityNameListInput) 
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_fuzzy_export_activity_name(info: Info, input: FuzzyNameInput) -> ResponseType:
@@ -1053,36 +1104,36 @@ async def view_fuzzy_export_activity_name(info: Info, input: FuzzyNameInput) -> 
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 # ===== 管理后台 · Excel 批量排期 / 模板 / 导出 =====
-UPLOAD_COLUMNS = ["project_id", "activity_name", "activity_start_time", "activity_end_time",
+UPLOAD_COLUMNS = ["project_name", "activity_name", "activity_start_time", "activity_end_time",
                   "apply_start_time", "apply_end_time"]
 
 
 async def view_upload_activity(info: Info, input: UploadActivityInput) -> ResponseType:
-    """Excel 批量排期上传：命中已有记录（同 project_id + activity_start_time）则更新，否则新增。"""
+    """Excel 批量排期上传：project_name 解析为 project_id 后，命中已有记录（同 project_id + activity_start_time）则更新，否则新增。"""
     if not await _verify_admin(info):
         return _resp(401, "Token Error")
     if not input.file_name.lower().endswith(".xlsx"):
-        return _resp(400, "文件格式错误，仅支持 .xlsx")
+        return _resp(400, "Invalid file format, only .xlsx is supported")
     try:
         raw = base64.b64decode(input.file_base64)
     except (ValueError, binascii.Error):
-        return _resp(400, "文件内容编码错误")
+        return _resp(400, "File content encoding error")
     if len(raw) > MAX_UPLOAD_BYTES:
-        return _resp(400, "文件大小超出限制")
+        return _resp(400, "File size exceeds limit")
 
     try:
         df = pd.read_excel(BytesIO(raw))
     except Exception as e:
-        logger.error(f"{_rid()}Excel 解析失败: {e}")
-        return _resp(400, "Excel 解析失败，请使用模板填写")
+        logger.error(f"{_rid()}Excel parsing failed: {e}")
+        return _resp(400, "Excel parsing failed, please use the template")
 
     missing = [c for c in UPLOAD_COLUMNS if c not in df.columns]
     if missing:
-        return _resp(400, f"Excel 缺少必要列: {','.join(missing)}")
+        return _resp(400, f"Excel missing required columns: {','.join(missing)}")
 
     maker = get_session()
     success_count = 0
@@ -1091,7 +1142,7 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
         try:
             for _, row in df.iterrows():
                 try:
-                    project_id = int(row["project_id"])
+                    project_name = str(row["project_name"]).strip() if pd.notna(row["project_name"]) else ""
                     start_time = pd.to_datetime(row["activity_start_time"]).to_pydatetime()
                     end_time = pd.to_datetime(row["activity_end_time"]).to_pydatetime()
                     apply_start = pd.to_datetime(row["apply_start_time"]).to_pydatetime()
@@ -1099,14 +1150,14 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
                     name = str(row["activity_name"]) if pd.notna(row["activity_name"]) else "N/A"
 
                     project = await _first(session, select(AaEnlistProject).where(
-                        AaEnlistProject.id == project_id
+                        AaEnlistProject.name == project_name
                     ))
                     if not project:
                         fail_count += 1
                         continue
 
                     existing = await _first(session, select(AaEnlistActivity).where(
-                        AaEnlistActivity.project_id == project_id,
+                        AaEnlistActivity.project_id == project.id,
                         AaEnlistActivity.activity_start_time == start_time,
                     ))
                     if existing:
@@ -1118,7 +1169,7 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
                     else:
                         session.add(AaEnlistActivity(
                             name=name,
-                            project_id=project_id,
+                            project_id=project.id,
                             activity_start_time=start_time,
                             activity_end_time=end_time,
                             apply_start_time=apply_start,
@@ -1128,28 +1179,28 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
                         ))
                     success_count += 1
                 except Exception as row_err:
-                    logger.error(f"{_rid()}排期行处理失败: {row_err}")
+                    logger.error(f"{_rid()}Schedule row processing failed: {row_err}")
                     fail_count += 1
             await session.commit()
             return _resp(200, "success", {"success_count": success_count, "fail_count": fail_count})
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 def _build_template_xlsx() -> bytes:
     """生成 14 天批量排期模板。"""
     wb = Workbook()
     ws = wb.active
-    ws.title = "排期模板"
+    ws.title = "Schedule Template"
     ws.append(UPLOAD_COLUMNS)
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     for day in range(14):
         base = today + timedelta(days=day, hours=9)
         ws.append([
-            "<项目ID>",
-            "<活动名称>",
+            "<Project Name>",
+            "<Activity Name>",
             base.strftime("%Y-%m-%d %H:%M"),
             (base + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M"),
             (base - timedelta(days=3)).strftime("%Y-%m-%d %H:%M"),
@@ -1168,15 +1219,15 @@ async def view_download_activity_template(info: Info) -> FileResponseType:
         return _file_resp(200, "success", "activity_template.xlsx", base64.b64encode(content).decode())
     except Exception as e:
         logger.error(f"{_rid()}{e}")
-        return _file_resp(500, "服务器错误")
+        return _file_resp(500, "Server error")
 
 
 def _build_export_xlsx(rows: list[dict]) -> bytes:
     wb = Workbook()
     ws = wb.active
-    ws.title = "报名数据"
-    headers = ["订单号", "活动名称", "姓名", "学号", "年级", "邮箱", "咨询话题",
-               "活动开始时间", "活动结束时间", "报名时间", "状态"]
+    ws.title = "Registration Data"
+    headers = ["Order Number", "Activity Name", "Name", "Student ID", "Grade", "Email", "Consultation Topic",
+               "Activity Start Time", "Activity End Time", "Registration Time", "Status"]
     header_fill = PatternFill("solid", fgColor="DDDDDD")
     thin = Border(*[Side(style="thin")] * 4)
     ws.append(headers)
@@ -1224,7 +1275,7 @@ async def view_export_activity(info: Info, input: ExportActivityInput) -> FileRe
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _file_resp(500, "服务器错误")
+            return _file_resp(500, "Server error")
 
 
 # ===== 管理后台 · 跨活动数据查询 =====
@@ -1239,7 +1290,7 @@ async def view_search_query_title(info: Info) -> ResponseType:
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_search_query_data(info: Info, input: QueryDataInput) -> ResponseType:
@@ -1261,7 +1312,7 @@ async def view_search_query_data(info: Info, input: QueryDataInput) -> ResponseT
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _resp(500, "服务器错误")
+            return _resp(500, "Server error")
 
 
 async def view_download_query_data(info: Info, input: TitleListInput) -> FileResponseType:
@@ -1276,4 +1327,4 @@ async def view_download_query_data(info: Info, input: TitleListInput) -> FileRes
         except Exception as e:
             logger.error(f"{_rid()}{e}")
             await session.rollback()
-            return _file_resp(500, "服务器错误")
+            return _file_resp(500, "Server error")

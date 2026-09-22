@@ -1,7 +1,7 @@
 "use client";
 
 /** 管理端 · 报表导出：时间区间 + 活动名多选Export Excel，底部表格联动刷新报名明细。 */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { exportActivity, fuzzyExportActivityName } from "@/api/admin";
 import { downloadBase64, gql } from "@/api/graphql";
 import {
@@ -33,26 +33,36 @@ export default function ReportExportPage() {
 
   const toMs = (local: string) => (local ? String(new Date(local).getTime()) : null);
 
-  // 活动名模糊搜索
+  // 活动名模糊搜索（debounce 250ms + 过期响应丢弃，避免乱序覆盖）
   useEffect(() => {
-    fuzzyExportActivityName(fuzzy).then((r) => {
-      if (r.code === 200 && r.parsed) setCandidates(r.parsed.name_list);
-    });
+    let stale = false;
+    const timer = setTimeout(() => {
+      fuzzyExportActivityName(fuzzy).then((r) => {
+        if (stale) return;
+        if (r.code === 200 && r.parsed) setCandidates(r.parsed.name_list);
+      });
+    }, 250);
+    return () => { stale = true; clearTimeout(timer); };
   }, [fuzzy]);
 
-  // 底部表格联动实时刷新报名明细
+  // 底部表格联动实时刷新报名明细（请求 ID 守卫，丢弃过期响应避免乱序覆盖）
+  const queryId = useRef(0);
   useEffect(() => {
+    const id = ++queryId.current;
+    const startMs = toMs(startTime);
+    const endMs = toMs(endTime);
     gql<{ total: number; list: ApplyRow[] }>(`query ($input: QueryDataInput!) {
       search_query_data(input: $input) { code message data }
     }`, {
       input: {
         title: selected,
-        start_time: toMs(startTime) ? Number(toMs(startTime)) : null,
-        end_time: toMs(endTime) ? Number(toMs(endTime)) : null,
+        start_time: startMs ? Number(startMs) : null,
+        end_time: endMs ? Number(endMs) : null,
         offset: 1,
         limit: 50,
       },
     }).then((r) => {
+      if (id !== queryId.current) return;
       if (r.code === 200 && r.parsed) setRows(r.parsed.list);
     });
   }, [selected, startTime, endTime]);

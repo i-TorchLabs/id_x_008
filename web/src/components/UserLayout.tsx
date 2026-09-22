@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { logout } from "@/api/user";
 import { useUser } from "@/stores/userStore";
 import AuthGuard from "./AuthGuard";
 import { Modal, PillButton } from "./ui";
@@ -18,6 +19,15 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const pathname = usePathname();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const handleLogout = async () => {
+    setShowLogoutConfirm(false);
+    try {
+      await logout();
+    } catch {}
+    logoutLocal();
+    router.replace("/login");
+  };
 
   const currentTitle = Object.entries(TITLE_MAP).find(([k]) => pathname?.startsWith(k))?.[1];
 
@@ -66,7 +76,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           className="flex-1 min-h-0 overflow-y-auto"
           style={{ background: tokens.bg, padding: "8px" }}
         >
-          <div style={{ minWidth: "600px", maxWidth: "1120px", margin: "0 auto" }}>
+          <div style={{ minWidth: "600px", maxWidth: "1400px", margin: "0 auto" }}>
             {children}
           </div>
         </main>
@@ -79,13 +89,10 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         title="Tips"
         footer={
           <>
-            <PillButton onClick={() => setShowLogoutConfirm(false)}>Cancle</PillButton>
+            <PillButton onClick={() => setShowLogoutConfirm(false)}>Cancel</PillButton>
             <PillButton
               primary
-              onClick={() => {
-                logoutLocal();
-                router.replace("/login");
-              }}
+              onClick={handleLogout}
             >
               Confirm
             </PillButton>
@@ -93,7 +100,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         }
       >
         <p style={{ fontFamily: SF_TEXT, fontSize: "14px", color: tokens.fg2, margin: 0 }}>
-          Are you sure to exist?
+          Are you sure to exit?
         </p>
       </Modal>
     </AuthGuard>

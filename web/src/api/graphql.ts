@@ -37,15 +37,20 @@ export async function gql<T = unknown>(
   query: string,
   variables?: Record<string, unknown>,
 ): Promise<ResponseType<T>> {
-  const res = await fetch(GRAPHQL_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Token: getToken(),
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  const body = await res.json();
+  let body: any;
+  try {
+    const res = await fetch(GRAPHQL_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Token: getToken(),
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    body = await res.json();
+  } catch (e) {
+    return { code: 500, message: "Network or server error", data: "{}" };
+  }
   const op = Object.keys(body.data ?? {})[0];
   const payload = body.data?.[op];
   if (!payload) {
@@ -65,17 +70,26 @@ export async function gqlFile(
   query: string,
   variables?: Record<string, unknown>,
 ): Promise<FileResponseType> {
-  const res = await fetch(GRAPHQL_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Token: getToken(),
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  const body = await res.json();
+  let body: any;
+  try {
+    const res = await fetch(GRAPHQL_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Token: getToken(),
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    body = await res.json();
+  } catch (e) {
+    return { code: 500, message: "Network or server error", file_name: "", file_base64: "" };
+  }
   const op = Object.keys(body.data ?? {})[0];
-  return body.data?.[op] ?? { code: 500, message: "Server error", file_name: "", file_base64: "" };
+  const payload = body.data?.[op];
+  if (payload) {
+    handleUnauthorized(payload.code);
+  }
+  return payload ?? { code: 500, message: "Server error", file_name: "", file_base64: "" };
 }
 
 /** base64 -> 浏览器下载 */

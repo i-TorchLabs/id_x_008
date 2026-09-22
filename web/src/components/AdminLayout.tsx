@@ -10,7 +10,7 @@ import { Modal, PillButton } from "./ui";
 import { SF_TEXT, tokens } from "@/utils/tokens";
 
 const MENU = [
-  { href: "/admin/project-management", label: "Subject" },
+  { href: "/admin/project-management", label: "Project" },
   { href: "/admin/activity-management", label: "Activities" },
   { href: "/admin/report-export", label: "Report" },
 ];
@@ -73,7 +73,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 color: tokens.fg3,
               }}
             >
-              IAO
+              Home
             </div>
             {MENU.map((m) => {
               const active = pathname?.startsWith(m.href);
@@ -172,13 +172,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         title="Tips"
         footer={
           <>
-            <PillButton onClick={() => setShowLogoutConfirm(false)}>Cancle</PillButton>
+            <PillButton onClick={() => setShowLogoutConfirm(false)}>Cancel</PillButton>
             <PillButton primary onClick={() => void handleLogout()}>Confirm</PillButton>
           </>
         }
       >
         <p style={{ fontFamily: SF_TEXT, fontSize: "14px", color: tokens.fg2, margin: 0 }}>
-          Are you sure to exist?
+          Are you sure to exit?
         </p>
       </Modal>
     </AuthGuard>

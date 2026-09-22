@@ -75,6 +75,23 @@ export const PillButton = ({
   </button>
 );
 
+// ── SortOrderButton：ID 排序切换（升序 ↑ / 降序 ↓） ──
+export type SortOrder = "asc" | "desc";
+
+export const SortOrderButton = ({
+  order,
+  onChange,
+  small,
+}: {
+  order: SortOrder;
+  onChange: (order: SortOrder) => void;
+  small?: boolean;
+}) => (
+  <PillButton small={small} onClick={() => onChange(order === "asc" ? "desc" : "asc")}>
+    ID {order === "asc" ? "↑" : "↓"}
+  </PillButton>
+);
+
 // ── Badge：n-tag 风格（3px 圆角小标签） ──
 export const Badge = ({
   children,
@@ -356,81 +373,6 @@ export const RadioButtonGroup = <T extends string>({
     })}
   </span>
 );
-
-// ── DateTimeInput：英文格式日期时间输入（MM/DD/YYYY HH:mm） ──
-// 原生 datetime-local 的年/月/日文案由浏览器语言决定，无法经页面控制；
-// 故以文本输入 + 英文格式解析替代，保证任何浏览器语言下均显示英文。
-// value / onChange 仍与原生一致：本地 ISO "YYYY-MM-DDTHH:mm"。
-const DT_REGEX = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/;
-
-function toDisplay(iso: string): string {
-  if (!iso) return "";
-  const [d, t] = iso.split("T");
-  if (!d || !t) return iso;
-  const [y, m, day] = d.split("-");
-  return `${Number(m)}/${Number(day)}/${y} ${t.slice(0, 5)}`;
-}
-
-function toIso(display: string): string | null {
-  const m = DT_REGEX.exec(display.trim());
-  if (!m) return null;
-  const [, mm, dd, yyyy, hh, mi] = m;
-  const month = Number(mm), day = Number(dd), hour = Number(hh);
-  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || Number(mi) > 59) return null;
-  const pad = (n: string) => n.padStart(2, "0");
-  return `${yyyy}-${pad(mm)}-${pad(dd)}T${pad(hh)}:${pad(mi)}`;
-}
-
-export const DateTimeInput = ({
-  value,
-  onChange,
-  placeholder = "MM/DD/YYYY HH:mm",
-}: {
-  value: string;
-  onChange: (iso: string) => void;
-  placeholder?: string;
-}) => {
-  const [text, setText] = React.useState(() => toDisplay(value));
-  const [invalid, setInvalid] = React.useState(false);
-
-  React.useEffect(() => {
-    setText(toDisplay(value));
-    setInvalid(false);
-  }, [value]);
-
-  return (
-    <input
-      lang="en"
-      style={{
-        ...inputBaseStyle,
-        border: `1px solid ${invalid ? tokens.error : tokens.inputBorder}`,
-      }}
-      placeholder={placeholder}
-      value={text}
-      onChange={(e) => {
-        const v = e.target.value;
-        setText(v);
-        if (!v.trim()) {
-          setInvalid(false);
-          onChange("");
-          return;
-        }
-        const iso = toIso(v);
-        if (iso) {
-          setInvalid(false);
-          onChange(iso);
-        } else {
-          setInvalid(true);
-        }
-      }}
-      onBlur={() => {
-        // 失焦时若非法则回退为最近一次有效值
-        setText(toDisplay(value));
-        setInvalid(false);
-      }}
-    />
-  );
-};
 
 // ── DateTimePicker：英文界面日期时间选择器 ──
 // 原生 datetime-local 的年/月/日文案随浏览器语言，无法页面级控制；

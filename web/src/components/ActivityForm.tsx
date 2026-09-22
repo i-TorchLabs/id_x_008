@@ -64,11 +64,11 @@ export default function ActivityForm({
         <FieldLabel>Project</FieldLabel>
         <select
           style={{ ...inputBaseStyle, appearance: "none" }}
-          value={value.project_id}
+          value={value.project_id || ""}
           onChange={(e) => setValue({ ...value, project_id: Number(e.target.value) })}
           required
         >
-          <option value={0}>Select project</option>
+          <option value="">Select project</option>
           {projects.map((p) => (
             <option key={p.project_id} value={p.project_id}>{p.project_name}</option>
           ))}

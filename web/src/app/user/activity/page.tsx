@@ -2,7 +2,8 @@
 
 /** 报名页：活动详情 + 结构化话题单选（已占用置灰）。 */
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import DOMPurify from "dompurify";
 import { type ActivityItem, applyActivity, getUserActivityDetail } from "@/api/user";
 import { useUser } from "@/stores/userStore";
 import { Badge, Card, ErrorText, FieldLabel, PageTitle, PillButton } from "@/components/ui";
@@ -23,6 +24,7 @@ function ApplyPageInner() {
   const [detail, setDetail] = useState<ActivityItem | null>(null);
   const [topic, setTopic] = useState("");
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const { user } = useUser();
   const router = useRouter();
 
@@ -35,18 +37,30 @@ function ApplyPageInner() {
   }, [id]);
 
   const submit = async () => {
-    if (!user || !detail || !topic) return;
-    const res = await applyActivity({
-      user_id: user.user_id,
-      activity_id: String(detail.activity_id),
-      info_1: topic,
-    });
-    if (res.code === 200) {
-      router.replace("/user/records");
-    } else {
-      setMessage(res.message);
+    if (!user || !detail || !topic || busy) return;
+    setBusy(true);
+    try {
+      const res = await applyActivity({
+        user_id: user.user_id,
+        activity_id: String(detail.activity_id),
+        info_1: topic,
+      });
+      if (res.code === 200) {
+        router.replace("/user/records");
+      } else {
+        setMessage(res.message);
+      }
+    } finally {
+      setBusy(false);
     }
   };
+
+  // 净化后端富文本（管理员产），剔除脚本/事件处理器，防御存储型 XSS
+  const cleanContent = useMemo(() => {
+    if (!detail?.content) return "";
+    if (typeof window === "undefined") return detail.content;
+    return DOMPurify.sanitize(detail.content, { USE_PROFILES: { html: true } });
+  }, [detail?.content]);
 
   if (!detail) {
     return (
@@ -57,7 +71,7 @@ function ApplyPageInner() {
   }
 
   return (
-    <div style={{ maxWidth: "640px", margin: "0 auto" }}>
+    <div style={{ maxWidth: "1800px", margin: "0 auto" }}>
       <Card noPadding>
         <div style={{ padding: "28px" }}>
           <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: "8px" }}>
@@ -87,7 +101,7 @@ function ApplyPageInner() {
               borderBottom: `1px solid ${tokens.divider}`,
               marginBottom: "20px",
             }}
-            dangerouslySetInnerHTML={{ __html: detail.content || "" }}
+            dangerouslySetInnerHTML={{ __html: cleanContent }}
           />
 
           <div style={{ marginBottom: "20px" }}>
@@ -127,10 +141,10 @@ function ApplyPageInner() {
           {message && <ErrorText>{message}</ErrorText>}
           <PillButton
             primary
-            disabled={!topic || detail.state !== "Open"}
+            disabled={!topic || busy || detail.state !== "Open"}
             onClick={submit}
           >
-            Submit Application
+            {busy ? "Submitting..." : "Submit Application"}
           </PillButton>
         </div>
       </Card>

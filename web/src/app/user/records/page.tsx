@@ -1,6 +1,7 @@
 "use client";
 
 /** 我的记录：报名记录列表 + 取消报名（结束前 4 小时禁取消由后端校验）。 */
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { type ApplyRecord, cancelApply } from "@/api/user";
 import { gql } from "@/api/graphql";
@@ -13,6 +14,7 @@ import { SF_TEXT, tokens } from "@/utils/tokens";
 
 export default function RecordsPage() {
   const { user } = useUser();
+  const router = useRouter();
   const [items, setItems] = useState<ApplyRecord[]>([]);
   const [message, setMessage] = useState("");
   const [cancelling, setCancelling] = useState<ApplyRecord | null>(null);
@@ -38,7 +40,14 @@ export default function RecordsPage() {
   return (
     <Card noPadding>
       <div style={{ padding: "24px" }}>
-        <div style={{ marginBottom: "20px" }}>
+        <div className="flex items-center gap-3" style={{ marginBottom: "20px" }}>
+          <PillButton onClick={() => router.push("/user/home")}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5" />
+              <path d="M12 19l-7-7 7-7" />
+            </svg>
+            Back
+          </PillButton>
           <PageTitle>My Applications</PageTitle>
         </div>
         {message && <ErrorText>{message}</ErrorText>}

@@ -92,6 +92,7 @@ class PageInput:
     end_date: Optional[str] = strawberry.field(default=None, description="结束时间（毫秒时间戳）")
     offset: int = strawberry.field(default=1, description="页码")
     limit: int = strawberry.field(default=10, description="每页数量")
+    sort_order: str = strawberry.field(default="asc", description="ID 排序：asc 升序 / desc 降序")
 
 
 @strawberry.input

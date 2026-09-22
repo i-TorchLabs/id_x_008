@@ -7,7 +7,7 @@ import {
 } from "@/api/admin";
 import ProjectForm, { type ProjectFormValue } from "@/components/ProjectForm";
 import {
-  Card, EmptyState, ErrorText, Modal, PageTitle, PillButton,
+  Card, EmptyState, ErrorText, Modal, PageTitle, PillButton, SortOrderButton, type SortOrder,
   tableStyle, tdMonoStyle, tdPrimaryStyle, tdStyle, thStyle,
 } from "@/components/ui";
 import { SF_TEXT, tokens } from "@/utils/tokens";
@@ -16,20 +16,21 @@ export default function ProjectManagementPage() {
   const [items, setItems] = useState<ProjectItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [editing, setEditing] = useState<ProjectItem | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<ProjectItem | null>(null);
   const [message, setMessage] = useState("");
 
-  const load = useCallback(async (p = page) => {
-    const res = await getProjectList({ offset: p, limit: 10 });
+  const load = useCallback(async (p = page, order = sortOrder) => {
+    const res = await getProjectList({ offset: p, limit: 10, sort_order: order });
     if (res.code === 200 && res.parsed) {
       setItems(res.parsed.list);
       setTotal(res.parsed.total);
     } else if (res.code === 401) {
       setMessage("Session expired (401)");
     }
-  }, [page]);
+  }, [page, sortOrder]);
 
   useEffect(() => {
     load(1);
@@ -39,7 +40,7 @@ export default function ProjectManagementPage() {
   const submitCreate = async (v: ProjectFormValue) => {
     const res = await createProject(v);
     setMessage(res.message);
-    if (res.code === 200) { setCreating(false); load(1); }
+    if (res.code === 200) { setCreating(false); setPage(1); load(1); }
   };
 
   const submitUpdate = async (v: ProjectFormValue) => {
@@ -55,9 +56,12 @@ export default function ProjectManagementPage() {
         {/* 工具条 */}
         <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: "20px" }}>
           <PageTitle>Project Management</PageTitle>
-          <PillButton primary onClick={() => { setCreating(true); setEditing(null); }}>
-            New Project
-          </PillButton>
+          <div className="flex gap-2 items-center">
+            <SortOrderButton order={sortOrder} onChange={(o) => { setSortOrder(o); setPage(1); load(1, o); }} />
+            <PillButton primary onClick={() => { setCreating(true); setEditing(null); }}>
+              New Project
+            </PillButton>
+          </div>
         </div>
         {message && <ErrorText>{message}</ErrorText>}
 
@@ -69,7 +73,12 @@ export default function ProjectManagementPage() {
             <table style={tableStyle}>
               <thead>
                 <tr>
-                  {["ID", "Name", "Quota", "Advisor", "Updated", "Actions"].map((h) => (
+                  <th style={{ ...thStyle, cursor: "pointer", userSelect: "none" }}
+                    title="Sort by ID"
+                    onClick={() => { const o = sortOrder === "asc" ? "desc" : "asc"; setSortOrder(o); setPage(1); load(1, o); }}>
+                    ID {sortOrder === "asc" ? "↑" : "↓"}
+                  </th>
+                  {["Name", "Quota", "Advisor", "Updated", "Actions"].map((h) => (
                     <th key={h} style={thStyle}>{h}</th>
                   ))}
                 </tr>

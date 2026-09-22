@@ -77,6 +77,11 @@ export async function cancelApply(input: { user_id: number; apply_id: number }) 
   }`, { input });
 }
 
+/** 登出：使服务端 Token 失效（与 admin 共用同一 mutation，无角色限制）。 */
+export async function logout() {
+  return gql(`mutation { logout { code message data } }`);
+}
+
 export async function searchUserActivity(input: {
   start_date?: string | null;
   end_date?: string | null;

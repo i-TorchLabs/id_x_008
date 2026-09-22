@@ -16,7 +16,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import select, update  # noqa: E402
 
 from x_models.id_x_008.src.models.x_models import (  # noqa: E402
     AaEnlistActivity,
@@ -40,20 +40,28 @@ async def run() -> None:
             AaEnlistActivity.activity_end_time <= threshold,
             AaEnlistApply.send_question != "True",
         ))
-        for apply_obj, activity in result.all():
+        # 预取为纯值快照，避免循环内 commit/rollback 后访问失效的 ORM 对象属性
+        # （rollback 会使 session 内对象过期，async 下同步属性读取触发 MissingGreenlet）
+        records = [(
+            a.id, a.email, a.name, a.order, act.name
+        ) for a, act in result.all()]
+        for apply_id, mail_to, student_name, order_no, act_name in records:
             try:
                 subject = "We value your feedback"
                 html = (
-                    f"<p>Dear {apply_obj.name},</p>"
-                    f"<p>感谢您参加咨询活动「{activity.name}」（订单号 {apply_obj.order}）。"
+                    f"<p>Dear {student_name},</p>"
+                    f"<p>感谢您参加咨询活动「{act_name}」（订单号 {order_no}）。"
                     f"诚邀您填写反馈问卷：<a href=\"{QUESTIONNAIRE_URL}\">{QUESTIONNAIRE_URL}</a></p>"
                 )
-                if _send_mail(subject, MAIL_FROM, apply_obj.email, "", html):
-                    apply_obj.send_question = "True"
+                if _send_mail(subject, MAIL_FROM, mail_to, "", html):
+                    await session.execute(
+                        update(AaEnlistApply).where(AaEnlistApply.id == apply_id)
+                        .values(send_question="True")
+                    )
                     await session.commit()
-                    logger.info(f"反馈问卷邮件已发送: to={apply_obj.email} order={apply_obj.order}")
+                    logger.info(f"反馈问卷邮件已发送: to={mail_to} order={order_no}")
             except Exception as e:
-                logger.error(f"反馈问卷邮件处理失败（apply={apply_obj.id}）: {e}")
+                logger.error(f"反馈问卷邮件处理失败（apply={apply_id}）: {e}")
                 await session.rollback()
 
 
