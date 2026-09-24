@@ -50,12 +50,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             background: tokens.accent,
           }}
         >
-          {/* 左侧：Logo（背景与紫色融合） */}
+          {/* 左侧：Logo（原样呈现） */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/f/008/assets/CUHKSZ.png"
             alt="CUHKSZ"
-            style={{ height: "36px", width: "auto", flexShrink: 0, mixBlendMode: "multiply" }}
+            style={{ height: "44px", width: "auto", flexShrink: 0 }}
           />
 
           {/* 右侧：用户名 + 登出 */}
