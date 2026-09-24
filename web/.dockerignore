@@ -1,0 +1,11 @@
+# id_x_008 前端构建排除（避免敏感文件进入镜像层）
+node_modules/
+.next/
+.env
+.env.local
+.env.*.local
+*.md
+.git
+.gitignore
+.DS_Store
+npm-debug.log*

@@ -18,10 +18,12 @@ import binascii
 import hashlib
 import json
 import os
+import re as _re
 import secrets
 import smtplib
 import string
-from datetime import datetime, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from io import BytesIO
@@ -35,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.types import Info
 
 from ...utils.log_util import get_request_id, logger
+from ..utils import x_oauth
 from ..models.x_models import (
     IaoEnlistActivity,
     IaoEnlistApply,
@@ -96,6 +99,17 @@ STATUS_FULL = "Full"
 STATUS_CLOSED = "Closed"
 
 
+# ===== OAuth2 配置（敏感信息经环境变量注入） =====
+OAUTH_CLIENT_ID = os.environ.get("IAO_OAUTH_CLIENT_ID", "")
+OAUTH_CLIENT_SECRET = os.environ.get("IAO_OAUTH_CLIENT_SECRET", "")
+OAUTH_REDIRECT_URI = os.environ.get("IAO_OAUTH_REDIRECT_URI", "")
+
+
+def _oauth_config_missing() -> bool:
+    """SSO 服务端配置是否缺失。"""
+    return not (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI)
+
+
 # ===== 通用工具 =====
 def _rid() -> str:
     return get_request_id()
@@ -138,6 +152,21 @@ def _get_token(info: Info) -> str | None:
     return request.headers.get("Token")
 
 
+def _get_client_ip(info: Info) -> str:
+    """从请求上下文中提取客户端 IP（用于限速等安全控制）。"""
+    ctx = info.context
+    request = ctx.get("request") if isinstance(ctx, dict) else getattr(ctx, "request", None)
+    if request is None:
+        return "unknown"
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if hasattr(request, "client") else "unknown"
+
+
+TOKEN_EXPIRE_HOURS = 72  # Token 有效期 72 小时
+
+
 async def _get_user_by_token(info: Info) -> IaoEnlistUser | None:
     token = _get_token(info)
     if not token or token == "N/A":
@@ -145,7 +174,13 @@ async def _get_user_by_token(info: Info) -> IaoEnlistUser | None:
     try:
         maker = get_session()
         async with maker() as session:
-            return await _first(session, select(IaoEnlistUser).where(IaoEnlistUser.key == token))
+            user = await _first(session, select(IaoEnlistUser).where(IaoEnlistUser.key == token))
+            if user and user.time:
+                expired_at = user.time + timedelta(hours=TOKEN_EXPIRE_HOURS)
+                if datetime.now(timezone.utc).replace(tzinfo=None) > expired_at.replace(tzinfo=None):
+                    logger.info(f"{_rid()}Token expired for user={user.id}")
+                    return None
+            return user
     except Exception as e:
         logger.error(f"{_rid()}Token verification failed: {e}")
         return None
@@ -165,12 +200,46 @@ async def _verify_user(info: Info, user_id: Any) -> bool:
     return user.role == "admin" or user.id == int(user_id)
 
 
+# ===== 密码哈希（PBKDF2-SHA256，兼容旧 SHA-256 哈希） =====
+_PBKDF2_ITERATIONS = 600_000
+_PBKDF2_ALGORITHM = "pbkdf2_sha256"
+_PBKDF2_PREFIX = f"${_PBKDF2_ALGORITHM}${_PBKDF2_ITERATIONS}$"
+
+
 def _new_token() -> str:
     return secrets.token_hex(32)
 
 
 def _hash_password(raw: str) -> str:
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    """PBKDF2-SHA256 哈希（格式：$pbkdf2_sha256$600000$<salt_b64>$<hash_b64>）。"""
+    salt = secrets.token_bytes(32)
+    dk = hashlib.pbkdf2_hmac("sha256", raw.encode("utf-8"), salt, _PBKDF2_ITERATIONS)
+    return f"{_PBKDF2_PREFIX}{base64.b64encode(salt).decode()}${base64.b64encode(dk).decode()}"
+
+
+def _verify_password(raw: str, stored: str) -> bool:
+    """验证密码：支持新 PBKDF2 格式 + 旧 SHA-256 兼容（向后兼容已部署系统）。"""
+    if not stored:
+        return False
+    if stored.startswith(f"${_PBKDF2_ALGORITHM}$"):
+        try:
+            _, algo, iters_str, salt_b64, hash_b64 = stored.split("$", 4)
+            iters = int(iters_str)
+            salt = base64.b64decode(salt_b64)
+            expected = base64.b64decode(hash_b64)
+            dk = hashlib.pbkdf2_hmac("sha256", raw.encode("utf-8"), salt, iters)
+            return secrets.compare_digest(dk, expected)
+        except Exception:
+            return False
+    # 旧版：纯十六进制 SHA-256（向后兼容）
+    if len(stored) == 64:
+        try:
+            int(stored, 16)
+            legacy = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+            return secrets.compare_digest(legacy, stored)
+        except ValueError:
+            return False
+    return False
 
 
 def _activity_status(apply_count: int, quota: int, activity: IaoEnlistActivity) -> str:
@@ -180,7 +249,7 @@ def _activity_status(apply_count: int, quota: int, activity: IaoEnlistActivity) 
     Full：报名数 >= 名额；
     Open：其余。
     """
-    now = datetime.now()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if activity.activity_end_time and now >= activity.activity_end_time:
         return STATUS_CLOSED
     if activity.activity_start_time and now >= activity.activity_start_time:
@@ -229,6 +298,40 @@ async def _apply_count(session: AsyncSession, activity_id: int) -> int:
         select(func.count()).select_from(IaoEnlistApply).where(IaoEnlistApply.activity_id == activity_id)
     )
     return int(result.scalar() or 0)
+
+
+# HTML 标签/属性黑名单（用于富文本安全净化）
+_DANGEROUS_TAGS = {"script", "iframe", "object", "embed", "form", "input", "button", "link", "meta", "style", "base"}
+_DANGEROUS_ATTRS = _re.compile(
+    r"\s(on\w+|href\s*=\s*[\"']javascript|formaction|action|srcdoc|data)\s*=",
+    _re.IGNORECASE,
+)
+_DANGEROUS_CSS = _re.compile(r"(expression|javascript|behavior|url\s*\(\s*['\"]?javascript)", _re.IGNORECASE)
+
+
+def _sanitize_html(html: str) -> str:
+    """移除富文本中的危险标签与属性（script/iframe/事件处理器/javascript: 伪协议等）。
+
+    仅做黑名单式过滤，不保证对复杂 XSS payload 的完全免疫；
+    结合 CSP header 构成纵深防御。
+    """
+    if not html:
+        return html
+    # 移除完整危险标签（<script>...</script> / <iframe ... /> / <style>...</style> 等）
+    for tag in _DANGEROUS_TAGS:
+        html = _re.sub(
+            rf"<{tag}\b[^>]*>.*?</{tag}\s*>", "", html,
+            flags=_re.IGNORECASE | _re.DOTALL,
+        )
+        html = _re.sub(
+            rf"<{tag}\b[^>]*/?>", "", html,
+            flags=_re.IGNORECASE,
+        )
+    # 移除危险属性（onerror/onload/href="javascript:" 等）
+    html = _DANGEROUS_ATTRS.sub(" data-removed=", html)
+    # 移除 style 中的危险表达式
+    html = _re.sub(r"style\s*=\s*[\"'][^\"']*?", lambda m: _DANGEROUS_CSS.sub("", m.group(0)), html, flags=_re.IGNORECASE)
+    return html
 
 
 def _activity_dict(activity: IaoEnlistActivity, project: IaoEnlistProject | None,
@@ -295,8 +398,50 @@ async def view_health(info: Info) -> HealthType:
     return HealthType(status="ok", service="id_x_008")
 
 
+# ===== 登录限速（简易内存计数器，单实例有效） =====
+_LOGIN_ATTEMPTS: dict[str, list[datetime]] = {}
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_WINDOW_SECONDS = 300  # 5 分钟内最多 5 次
+
+
+def _check_login_rate(identifier: str) -> bool:
+    """返回 True 表示未超限；False 表示触发限速。"""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window_start = now - timedelta(seconds=_LOGIN_WINDOW_SECONDS)
+    attempts = _LOGIN_ATTEMPTS.get(identifier, [])
+    attempts = [t for t in attempts if t > window_start]
+    _LOGIN_ATTEMPTS[identifier] = attempts
+    if len(attempts) >= _LOGIN_MAX_ATTEMPTS:
+        return False
+    attempts.append(now)
+    return True
+
+
+# ===== 公钥分发 =====
+async def view_public_key(info: Info) -> ResponseType:
+    from ..utils.crypto_util import get_public_key
+    return _resp(200, "success", {"public_key": get_public_key()})
+
+
 # ===== 认证 =====
 async def view_login(info: Info, input: LoginInput) -> ResponseType:
+    # 登录限速：按用户名 + 客户端 IP 组合识别
+    client_ip = _get_client_ip(info)
+    rate_key = f"{input.username}@{client_ip}"
+    if not _check_login_rate(rate_key):
+        return _resp(429, "Too many login attempts. Please try again later.")
+
+    # 密码解密：优先使用 RSA-OAEP 加密密文，否则降级为明文（向后兼容）
+    raw_password = input.password
+    if input.encrypted_password:
+        try:
+            from ..utils.crypto_util import decrypt_password
+            raw_password = decrypt_password(input.encrypted_password)
+        except Exception:
+            return _resp(403, "Invalid username or password")
+    if not raw_password:
+        return _resp(403, "Invalid username or password")
+
     maker = get_session()
     async with maker() as session:
         try:
@@ -304,11 +449,14 @@ async def view_login(info: Info, input: LoginInput) -> ResponseType:
                 IaoEnlistUser.username == input.username,
                 IaoEnlistUser.role == "admin",
             ))
-            if not user or user.password != _hash_password(input.password):
+            if not user or not _verify_password(raw_password, user.password):
                 return _resp(403, "Invalid username or password")
+            # 若密码为旧版 SHA-256 哈希，自动升级为新 PBKDF2 格式
+            if user.password and not user.password.startswith(f"${_PBKDF2_ALGORITHM}$"):
+                user.password = _hash_password(raw_password)
             token = _new_token()
             user.key = token
-            user.time = datetime.now()
+            user.time = datetime.now(timezone.utc).replace(tzinfo=None)
             await session.commit()
             return _resp(200, "success", {
                 "user_id": user.id,
@@ -341,36 +489,159 @@ async def view_logout(info: Info) -> ResponseType:
 
 
 async def view_user_oauth(info: Info, input: OauthInput) -> ResponseType:
-    """SSO 登录回调：解析 token 中的学号/姓名/邮箱，首次登录自动建档。
+    """学生 SSO 登录：ADFS 授权码授予流。
 
-    oauth_token 约定为 JSON base64：{"number","name","email","grade"}；
-    解析失败返回 400。生产环境应替换为 ADFS 真实校验。
+    流程：
+    1. 前端经 ADFS /authorize 重定向回业务站点，携带 code + state；
+    2. 本接口用 code + client_secret（仅服务端持有）到 /token 换 id_token；
+    3. 验签 / 校验 id_token，提取 upn/email/name 建档或更新会话；
+    4. 返回服务端签发的独立会话 token，不再暴露 IdP token。
+
+    向后兼容：非生产环境下 oauth_token（base64 JSON mock）仍可用于测试。
     """
-    try:
-        padded = input.oauth_token + "=" * (-len(input.oauth_token) % 4)
-        profile = json.loads(base64.b64decode(padded).decode("utf-8"))
-    except (ValueError, binascii.Error) as e:
-        logger.error(f"{_rid()}SSO token parsing failed: {e}")
-        return _resp(400, "Invalid SSO Token format")
+    if _oauth_config_missing():
+        logger.error(f"{_rid()}OAuth2 服务端配置缺失（IAO_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI）")
+        return _resp(500, "SSO 服务未配置")
 
-    number = str(profile.get("number", "")).strip()
-    if not number:
-        return _resp(400, "SSO Token missing student ID field")
+    # 授权码授予流：code 优先；旧 oauth_token 仅为兼容保留
+    logger.info(f"{_rid()}OAuth 登录请求: has_code={bool(input.code)} has_token={bool(input.oauth_token)}")
+    payload_data: dict | None = None
+    if input.code:
+        # 防重放 nonce：与本次授权码绑定，ADFS 回显后由 exchange_code_for_token 校验
+        nonce = hashlib.sha256(input.code.encode("utf-8")).hexdigest()
+        token_resp = x_oauth.exchange_code_for_token(
+            code=input.code,
+            client_id=OAUTH_CLIENT_ID,
+            client_secret=OAUTH_CLIENT_SECRET,
+            redirect_uri=OAUTH_REDIRECT_URI,
+            expected_nonce=nonce,
+        )
+        if token_resp is None:
+            logger.warning(f"{_rid()}OAuth /token 换取失败（code 无效/过期/已用/重放或网络问题）")
+            return _resp(401, "Invalid OAuth Code")
+        id_token = x_oauth.extract_id_token(token_resp)
+        if not id_token:
+            logger.warning(f"{_rid()}OAuth /token 响应缺少 id_token: keys={list(token_resp.keys())}")
+            return _resp(401, "Invalid OAuth Token Response")
+        logger.info(f"{_rid()}OAuth 换取 id_token 成功，开始验签")
+        payload_data, reason = x_oauth.verify_id_token(id_token, expected_aud=OAUTH_CLIENT_ID)
+        if payload_data is None:
+            # 失败诊断直接进 warn.log：payload keys 是定位 ADFS 配置问题的关键证据
+            _payload = x_oauth.decode_payload_unverified(id_token) or {}
+            logger.warning(
+                f"{_rid()}OAuth id_token 验签/校验失败: reason={reason} "
+                f"keys={sorted(_payload.keys())} aud={_payload.get('aud')!r} "
+                f"iss={_payload.get('iss')!r} exp={_payload.get('exp')!r} now={int(time.time())}"
+            )
+        else:
+            # 身份声明解析：对 ADFS 声明规则差异容错，缺失时返回 None
+            identity = x_oauth.resolve_identity_claims(payload_data)
+            if identity is None:
+                logger.warning(
+                    f"{_rid()}OAuth 身份声明解析失败: keys={sorted(payload_data.keys())}"
+                )
+                payload_data = None
+            else:
+                payload_data["_identity"] = identity
+                logger.info(
+                    f"{_rid()}OAuth 身份解析成功: upn_claim={identity['upn_claim']} "
+                    f"email_claim={identity['email_claim']}"
+                )
+    elif input.oauth_token:
+        # 向后兼容：非生产环境使用旧 base64(JSON) 模拟 token
+        is_production = os.environ.get("IAO_ENV", "").lower() in ("production", "prod")
+        if is_production:
+            logger.critical(f"{_rid()}SSO mock token rejected in production mode!")
+            return _resp(501, "SSO integration not configured for production. Contact administrator.")
+        try:
+            padded = input.oauth_token + "=" * (-len(input.oauth_token) % 4)
+            payload_data = json.loads(base64.b64decode(padded).decode("utf-8"))
+            if not isinstance(payload_data, dict) or not payload_data.get("number"):
+                payload_data = None
+        except (ValueError, binascii.Error, json.JSONDecodeError) as e:
+            logger.error(f"{_rid()}SSO token parsing failed: {e}")
+            payload_data = None
+
+    if payload_data is None:
+        return _resp(401, "Invalid OAuth Token")
 
     maker = get_session()
     async with maker() as session:
         try:
+            identity = payload_data.pop("_identity", None) or {}
+            # 真实 ADFS 流程：使用 identity claims
+            if identity:
+                upn = identity.get("upn") or payload_data.get("upn") or "N/A"
+                email = identity.get("email") or payload_data.get("email") or "N/A"
+                name = identity.get("display_name") or payload_data.get("name") or "N/A"
+                # 从 display_name 提取学号（CUHKSZ 格式如 "CHEN,DA WEI(1234567890)"）
+                try:
+                    number = name.split(",")[1].strip().split(")")[0].strip()
+                except Exception:
+                    number = "N/A"
+
+                user = await _first(session, select(IaoEnlistUser).where(
+                    IaoEnlistUser.username == upn,
+                ))
+
+                if not user:
+                    # 新用户建档：签发独立 session key
+                    session_key = secrets.token_urlsafe(32)
+                    user = IaoEnlistUser(
+                        username=upn,
+                        password="N/A",
+                        role="user",
+                        key=session_key,
+                        name=name,
+                        grade="N/A",
+                        number=number,
+                        email=email,
+                        time=datetime.now(timezone.utc),
+                    )
+                    session.add(user)
+                    await session.commit()
+                    await session.refresh(user)
+                    logger.info(f"{_rid()}新用户 SSO 建档: {upn} {name} {email}")
+                    return _resp(200, "success", {
+                        "user_id": user.id,
+                        "name": user.name,
+                        "number": user.number,
+                        "role": user.role,
+                        "token": session_key,
+                    })
+
+                # 老用户：更新信息并签发新 session key
+                session_key = secrets.token_urlsafe(32)
+                user.key = session_key
+                user.name = name
+                user.email = email
+                user.number = number
+                user.time = datetime.now(timezone.utc)
+                await session.commit()
+                return _resp(200, "success", {
+                    "user_id": user.id,
+                    "name": user.name,
+                    "number": user.number,
+                    "role": user.role,
+                    "token": session_key,
+                })
+
+            # 旧 mock token 流程（非生产环境 base64 JSON）
+            number = str(payload_data.get("number", "")).strip()
+            if not number:
+                return _resp(400, "SSO Token missing student ID field")
+
             user = await _first(session, select(IaoEnlistUser).where(IaoEnlistUser.number == number))
             if not user:
                 user = IaoEnlistUser(
                     username=number,
                     password="N/A",
                     role="user",
-                    name=profile.get("name", "N/A"),
-                    grade=profile.get("grade", "N/A"),
+                    name=payload_data.get("name", "N/A"),
+                    grade=payload_data.get("grade", "N/A"),
                     number=number,
-                    email=profile.get("email", "N/A"),
-                    time=datetime.now(),
+                    email=payload_data.get("email", "N/A"),
+                    time=datetime.now(timezone.utc),
                 )
                 session.add(user)
                 await session.flush()
@@ -496,7 +767,7 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
             if not user:
                 return _resp(404, "User not found")
 
-            now = datetime.now()
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             # 规则：报名尚未开放
             if activity.apply_start_time and now < activity.apply_start_time:
                 return _resp(403, "Registration has not opened yet.", {
@@ -574,7 +845,7 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
                 info_1=input.info_1 or "N/A",
                 info_2=input.info_2 or "N/A",
                 info_3=input.info_3 or "N/A",
-                time=datetime.now(),
+                time=datetime.now(timezone.utc),
             )
             session.add(obj)
             await session.commit()
@@ -631,7 +902,7 @@ async def view_cancel_apply(info: Info, input: CancelApplyInput) -> ResponseType
             ))
             # 规则：结束前 4 小时禁取消
             if activity and activity.activity_end_time and \
-                    datetime.now() >= activity.activity_end_time - timedelta(hours=CANCEL_FORBID_HOURS):
+                    datetime.now(timezone.utc).replace(tzinfo=None) >= activity.activity_end_time - timedelta(hours=CANCEL_FORBID_HOURS):
                 return _resp(403, "Cancellation is not allowed within 4 hours before the activity ends.", {
                     "apply_id": input.apply_id,
                     "activity_name": activity.name,
@@ -724,17 +995,19 @@ async def view_create_project(info: Info, input: CreateProjectInput) -> Response
             ))
             if existing:
                 return _resp(403, "Project name already exists")
-            content_obj = IaoEnlistContent(content=input.project_content, time=datetime.now())
+            # 富文本 XSS 净化：移除 script/event-handler 等危险标签/属性
+            sanitized_content = _sanitize_html(input.project_content)
+            content_obj = IaoEnlistContent(content=sanitized_content, time=datetime.now(timezone.utc))
             session.add(content_obj)
             await session.flush()
             project = IaoEnlistProject(
                 name=input.project_name,
                 quota=input.quota,
-                content=input.project_content,
+                content=sanitized_content,
                 content_ex_id=content_obj.id,
                 owner=input.owner,
-                time=datetime.now(),
-                update=datetime.now(),
+                time=datetime.now(timezone.utc),
+                update=datetime.now(timezone.utc),
             )
             session.add(project)
             await session.commit()
@@ -763,17 +1036,18 @@ async def view_update_project(info: Info, input: UpdateProjectInput) -> Response
             if duplicate:
                 return _resp(403, "Project name already exists")
             project.name = input.project_name
-            project.content = input.project_content
+            sanitized = _sanitize_html(input.project_content)
+            project.content = sanitized
             project.quota = input.quota
             if input.owner:
                 project.owner = input.owner
-            project.update = datetime.now()
+            project.update = datetime.now(timezone.utc)
             if project.content_ex_id:
                 content_obj = await _first(session, select(IaoEnlistContent).where(
                     IaoEnlistContent.id == project.content_ex_id
                 ))
                 if content_obj:
-                    content_obj.content = input.project_content
+                    content_obj.content = sanitized
             await session.commit()
             return _resp(200, "success", {"project_id": project.id})
         except Exception as e:
@@ -943,8 +1217,8 @@ async def view_create_activity(info: Info, input: CreateActivityInput) -> Respon
                 activity_end_time=_ms_to_dt(input.activity_end_time),
                 apply_start_time=_ms_to_dt(input.apply_start_time),
                 apply_end_time=_ms_to_dt(input.apply_end_time),
-                time=datetime.now(),
-                update=datetime.now(),
+                time=datetime.now(timezone.utc),
+                update=datetime.now(timezone.utc),
             )
             session.add(activity)
             await session.commit()
@@ -986,7 +1260,7 @@ async def view_update_activity(info: Info, input: UpdateActivityInput) -> Respon
                     if parsed is None:
                         return _resp(400, f"Invalid {field}")
                     setattr(activity, field, parsed)
-            activity.update = datetime.now()
+            activity.update = datetime.now(timezone.utc)
             await session.commit()
             return _resp(200, "success", {"activity_id": activity.id})
         except Exception as e:
@@ -1165,7 +1439,7 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
                         existing.activity_end_time = end_time
                         existing.apply_start_time = apply_start
                         existing.apply_end_time = apply_end
-                        existing.update = datetime.now()
+                        existing.update = datetime.now(timezone.utc)
                     else:
                         session.add(IaoEnlistActivity(
                             name=name,
@@ -1174,8 +1448,8 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
                             activity_end_time=end_time,
                             apply_start_time=apply_start,
                             apply_end_time=apply_end,
-                            time=datetime.now(),
-                            update=datetime.now(),
+                            time=datetime.now(timezone.utc),
+                            update=datetime.now(timezone.utc),
                         ))
                     success_count += 1
                 except Exception as row_err:
@@ -1195,7 +1469,7 @@ def _build_template_xlsx() -> bytes:
     ws = wb.active
     ws.title = "Schedule Template"
     ws.append(UPLOAD_COLUMNS)
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
     for day in range(3):
         base = today + timedelta(days=day, hours=9)
         ws.append([

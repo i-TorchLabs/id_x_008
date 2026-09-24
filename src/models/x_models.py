@@ -47,8 +47,11 @@ class IaoEnlistUser(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False, default="N/A", comment="邮箱")
     time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=datetime.now, comment="时间")
 
+    _SAFE_FIELDS = {"id", "username", "role", "name", "grade", "number", "email", "time"}
+
     def to_dict(self) -> dict:
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        """序列化为字典，排除敏感字段 password 与 key（Token）。"""
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns if c.name in self._SAFE_FIELDS}
 
 
 class IaoEnlistContent(Base):
@@ -75,8 +78,11 @@ class IaoEnlistProject(Base):
     update: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=datetime.now, comment="更新")
     time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=datetime.now, comment="时间")
 
+    _SAFE_FIELDS = {"id", "name", "quota", "content", "content_ex_id", "owner", "update", "time"}
+
     def to_dict(self) -> dict:
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        """序列化为字典，通过 _SAFE_FIELDS 白名单显式控制字段暴露。"""
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns if c.name in self._SAFE_FIELDS}
 
 
 class IaoEnlistActivity(Base):

@@ -8,6 +8,7 @@
  * dangerouslySetInnerHTML 渲染时无需依赖 quill.snow.css 即可正确呈现。
  */
 import { useEffect, useRef } from "react";
+import DOMPurify from "dompurify";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
 
@@ -93,9 +94,10 @@ export default function RichTextEditor({
       onChangeRef.current(lastEmitted.current);
     });
     quillRef.current = quill;
-    // 初始化后同步一次外部 value（编辑态回填）
+    // 初始化后同步一次外部 value（编辑态回填，DOMPurify 净化后再 paste）
     if (value && value !== lastEmitted.current) {
-      quill.clipboard.dangerouslyPasteHTML(value);
+      const sanitized = DOMPurify.sanitize(value, { USE_PROFILES: { html: true } });
+      quill.clipboard.dangerouslyPasteHTML(sanitized);
       lastEmitted.current = quill.getSemanticHTML();
     }
   }, []);
@@ -106,7 +108,8 @@ export default function RichTextEditor({
     if (!quill) return;
     if (value === lastEmitted.current) return;
     const sel = quill.getSelection();
-    quill.clipboard.dangerouslyPasteHTML(value || "");
+    const sanitized = DOMPurify.sanitize(value || "", { USE_PROFILES: { html: true } });
+    quill.clipboard.dangerouslyPasteHTML(sanitized);
     lastEmitted.current = quill.getSemanticHTML();
     if (sel) quill.setSelection(sel);
   }, [value]);

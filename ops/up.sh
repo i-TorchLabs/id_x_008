@@ -17,18 +17,17 @@ set -a; source "${OPS_DIR}/.env"; set +a
 
 # 2. 构建镜像
 if [ "${1:-}" = "--build" ] || ! podman image exists "${PLUGIN}_service"; then
-    podman build --format docker -t "${PLUGIN}_service" -f "${OPS_DIR}/Dockerfile.service" "${REPO_ROOT}"
+    podman build --format docker --network=host -t "${PLUGIN}_service" -f "${OPS_DIR}/Dockerfile.service" "${REPO_ROOT}"
 fi
 if [ "${1:-}" = "--build" ] || ! podman image exists "${PLUGIN}_web"; then
-    podman build --format docker -t "${PLUGIN}_web" "${OPS_DIR}/../web"
+    podman build --format docker --network=host -t "${PLUGIN}_web" "${OPS_DIR}/../web"
 fi
 
 # 3. Pod（已存在则跳过）
 if ! podman pod exists "${PLUGIN}"; then
-    # 宿主机 45432 -> pod 5432(由容器内 db 监听),宿主机 8008 -> pod 8080
+    # 仅暴露 HAProxy 入口（8008），数据库端口不映射到宿主机（安全策略）
     podman pod create --name "${PLUGIN}" \
-        -p "${HOST_PORT}:8080" \
-        -p "45432:5432"
+        -p "${HOST_PORT}:8080"
 fi
 
 # 4. 数据卷（已存在则跳过）
@@ -55,7 +54,7 @@ done
 
 if ! podman container exists "${PLUGIN}_service"; then
     # 日志挂载:宿主机 x_models/id_x_008/logs -> 容器 /app/i-Core/logs
-    mkdir -p "${OPS_DIR}/../logs"
+    mkdir -p "${OPS_DIR}/../../logs"
     podman run -d --pod "${PLUGIN}" --name "${PLUGIN}_service" \
         -e DB_NAME="${POSTGRES_DB}" \
         -e DB_HOST=127.0.0.1 \
@@ -65,9 +64,12 @@ if ! podman container exists "${PLUGIN}_service"; then
         -e IAO_DB_ENCRYPTED="${IAO_DB_ENCRYPTED:-}" \
         -e IAO_SECRET_KEY="${IAO_SECRET_KEY:-}" \
         -e IAO_MAIL_PASSWORD="${IAO_MAIL_PASSWORD:-}" \
+        -e IAO_OAUTH_CLIENT_ID="${IAO_OAUTH_CLIENT_ID:-}" \
+        -e IAO_OAUTH_CLIENT_SECRET="${IAO_OAUTH_CLIENT_SECRET:-}" \
+        -e IAO_OAUTH_REDIRECT_URI="${IAO_OAUTH_REDIRECT_URI:-}" \
         -e IAO_PORT=8101 \
         -e PROJECT_PATH=/app/i-Core \
-        -v "${OPS_DIR}/../logs:/app/i-Core/logs" \
+        -v "${OPS_DIR}/../../logs:/app/i-Core/logs" \
         "${PLUGIN}_service"
 fi
 

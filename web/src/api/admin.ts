@@ -1,6 +1,59 @@
 /** 管理端 API：对应后端 Query/Mutation 操作（需管理员 Token）。 */
 import { gql, gqlFile } from "./graphql";
 
+// ===== RSA 加密工具（Web Crypto API） =====
+
+let _publicKeyPromise: Promise<string> | null = null;
+
+/** 获取 RSA 公钥（带缓存，同页面只请求一次） */
+async function getPublicKey(): Promise<string> {
+  if (!_publicKeyPromise) {
+    _publicKeyPromise = (async () => {
+      const res = await gql<{ public_key: string }>(`query {
+        public_key { code message data }
+      }`);
+      if (res.code === 200 && res.parsed?.public_key) {
+        return res.parsed.public_key;
+      }
+      throw new Error("Failed to fetch public key");
+    })();
+  }
+  return _publicKeyPromise;
+}
+
+/** 使用 RSA-OAEP SHA-256 加密明文密码 */
+async function encryptPassword(publicKeyPem: string, password: string): Promise<string> {
+  const pemHeader = "-----BEGIN PUBLIC KEY-----";
+  const pemFooter = "-----END PUBLIC KEY-----";
+  const pemContents = publicKeyPem
+    .replace(pemHeader, "")
+    .replace(pemFooter, "")
+    .replace(/\s/g, "");
+
+  const binaryDer = Uint8Array.from(
+    atob(pemContents),
+    (c) => c.charCodeAt(0),
+  );
+
+  const publicKey = await crypto.subtle.importKey(
+    "spki",
+    binaryDer,
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    false,
+    ["encrypt"],
+  );
+
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "RSA-OAEP" },
+    publicKey,
+    new TextEncoder().encode(password),
+  );
+
+  return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+}
+
+// ===== 业务 API =====
+
 export interface ProjectItem {
   project_id: number;
   project_name: string;
@@ -12,9 +65,24 @@ export interface ProjectItem {
 }
 
 export async function login(username: string, password: string) {
+  let encryptedPassword = "";
+  try {
+    const publicKey = await getPublicKey();
+    encryptedPassword = await encryptPassword(publicKey, password);
+  } catch (e) {
+    // 加密失败时降级为明文传输（向后兼容）
+    console.warn("RSA encryption unavailable, falling back to plaintext", e);
+  }
+
   return gql<{ user_id: number; token: string; role: string }>(`mutation ($input: LoginInput!) {
     login(input: $input) { code message data }
-  }`, { input: { username, password } });
+  }`, {
+    input: {
+      username,
+      password: encryptedPassword ? "" : password,
+      encrypted_password: encryptedPassword,
+    },
+  });
 }
 
 export async function logout() {

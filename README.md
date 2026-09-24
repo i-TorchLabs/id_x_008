@@ -282,6 +282,37 @@ cd web
 npm install
 ```
 
+### 管理员账号配置 (Admin Account Setup)
+
+数据库初始化脚本 `ops/init/01_seed_admin.sql` 预置了管理员账号 **`admin@example.com`**，但密码字段为**占位哈希（无法登录）**，部署前必须替换为真实密码哈希。
+
+**Step 1 — 生成密码哈希**
+
+```bash
+cd /home/i/Desktop/codeSpace/i-Core
+# 使用 heredoc 方式避免密码中的特殊字符（如 !）被 bash 解析
+python << 'EOF'
+from x_models.id_x_008.src.views import x_views
+print(x_views._hash_password('你的密码'))
+EOF
+```
+
+输出格式：`$pbkdf2_sha256$600000$<base64_salt>$<base64_hash>`
+
+**Step 2 — 替换占位哈希**
+
+编辑 `ops/init/01_seed_admin.sql`，将第 29 行的 password 字段值：
+
+```sql
+'$pbkdf2_sha256$600000$REPLACE_THIS_SALT_BEFORE_DEPLOYMENT$REPLACE_THIS_HASH_BEFORE_DEPLOYMENT'
+```
+
+替换为 Step 1 生成的哈希值，然后重新部署。
+
+**Step 3 — 登录后台修改密码（推荐）**
+
+部署完成后以 `admin@example.com` + 自定义密码登录管理后台，立即在后台修改为最终密码。
+
 ### 运行 (Run)
 
 ```bash

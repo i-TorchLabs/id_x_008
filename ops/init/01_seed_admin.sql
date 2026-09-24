@@ -1,6 +1,11 @@
 -- id_x_008 初始化：预置管理员账号（首启建库时执行）
--- 密码以 SHA-256 十六进制存储（与 src/views/x_views.py 的 _hash_password 一致）
--- 明文：P@ss2026!  →  sha256: 0d81614a64bda9083d0a3b38b2d102fd9953f1628d3ab5edbd0cdd73f87d565b
+-- 密码以 PBKDF2-SHA256 格式存储（与 src/views/x_views.py 的 _hash_password 一致）
+--
+-- ⚠️ 安全策略：此文件使用占位哈希（无法登录），生产部署前必须手动替换为真实密码哈希。
+--    生产环境密码生成方式：
+--      python -c "from x_models.id_x_008.src.views import x_views; print(x_views._hash_password('YOUR_SECURE_PASSWORD'))"
+--    然后替换下面 INSERT 语句中的 password 字段值。
+--    部署完成后立即登录后台修改密码。
 
 -- 若表先于服务启动创建（服务 on_startup 为 create_all，幂等兼容）
 CREATE TABLE IF NOT EXISTS iao_enlist_user (
@@ -18,11 +23,12 @@ CREATE TABLE IF NOT EXISTS iao_enlist_user (
 COMMENT ON TABLE iao_enlist_user IS '用户表';
 
 -- 幂等插入管理员（username 唯一判定，重复执行不报错）
+-- 占位哈希无法用于登录；生产部署前必须替换为真实密码哈希。
 INSERT INTO iao_enlist_user (username, password, role, name, email)
 SELECT 'rayzha@cuhk.edu.cn',
-       '0d81614a64bda9083d0a3b38b2d102fd9953f1628d3ab5edbd0cdd73f87d565b',
+       '$pbkdf2_sha256$600000$obEnbUnMOIZp2kXEs7W1FYt6vQJTrxsbgoSLgNfr3s8=$T3SQaqAG7xRmVOdnUloUj5S5kSbo1TmoqAdxySA1Hxc=',
        'admin',
-       '查锐',
+       'Admin',
        'rayzha@cuhk.edu.cn'
 WHERE NOT EXISTS (
     SELECT 1 FROM iao_enlist_user WHERE username = 'rayzha@cuhk.edu.cn'

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -29,7 +29,7 @@ from x_models.id_x_008.utils.log_util import logger  # noqa: E402
 
 
 async def run() -> None:
-    now = datetime.now()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     day_start = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     day_end = day_start + timedelta(days=1)
 

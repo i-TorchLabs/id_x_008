@@ -9,8 +9,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "45432:5432"
+    #   - "45432:5432"  # 安全策略：数据库端口不对外暴露（仅 Pod 内互访）
     volumes:
       - id_x_008_db_data:/var/lib/postgresql
       - ./init:/docker-entrypoint-initdb.d:ro
@@ -27,6 +26,9 @@ services:
     image: id_x_008_service:latest
     container_name: id_x_008_service
     restart: unless-stopped
+    # ⚠️ 安全提示：生产环境建议使用 Podman Secrets 或 K8s Secrets 替代明文环境变量注入凭据
+    # 当前通过 .env 文件注入 DB_PASSWORD / IAO_MAIL_PASSWORD 等敏感值
+    # 可使用 encrypted DB creds（IAO_DB_ENCRYPTED=true + IAO_SECRET_KEY）作为过渡方案
     environment:
       DB_NAME: ${POSTGRES_DB}
       DB_HOST: db

@@ -87,4 +87,10 @@ if __name__ == "__main__":
     import uvicorn
 
     port = int(os.environ.get("IAO_PORT", "8101"))
+    import warnings
+    warnings.warn(
+        "独立运行模式未启用安全加固（CORS/限速等）。生产环境请通过 i-Core 引擎加载。",
+        RuntimeWarning,
+        stacklevel=2,
+    )
     uvicorn.run(create_app(), host="0.0.0.0", port=port)

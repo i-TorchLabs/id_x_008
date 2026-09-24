@@ -6,8 +6,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { login } from "@/api/admin";
-import { userOauth } from "@/api/user";
 import { useUser } from "@/stores/userStore";
+import { redirectToAdfsAuthorize } from "@/utils/sso";
 import { SF_TEXT, tokens } from "@/utils/tokens";
 
 export default function LoginPage() {
@@ -41,24 +41,9 @@ export default function LoginPage() {
     }
   };
 
-  // 学生 SSO：生产环境应跳转 CUHK ADFS；此处演示以 base64(JSON) 模拟回调
-  const doSso = async () => {
-    const token = btoa(
-      JSON.stringify({
-        number: "1234567890",
-        name: "Demo Student",
-        email: "1234567890@link.cuhk.edu.cn",
-        grade: "UG Year 1",
-      }),
-    );
-    const res = await userOauth(token);
-    if (res.code === 200 && res.parsed) {
-      const d = res.parsed as { user_id: number; name: string; token: string };
-      setUser({ user_id: d.user_id, name: d.name, role: "user", token: d.token });
-      router.replace("/user/home");
-    } else {
-      setError(res.message || "SSO Login failed");
-    }
+  // 学生 SSO：跳转 CUHK ADFS /authorize（授权码授予流）
+  const doSso = () => {
+    redirectToAdfsAuthorize();
   };
 
   const groupLabelStyle: React.CSSProperties = {
@@ -104,8 +89,8 @@ export default function LoginPage() {
         height: "100vh",
         width: "100%",
         fontFamily: SF_TEXT,
-        // 与原工程一致：LOGIN-BG.png 全屏背景
-        background: "url(/assets/LOGIN-BG.png)",
+        // LOGIN-BG.png 全屏背景（basePath /f/008 必须显式写出）
+        background: "url(/f/008/assets/LOGIN-BG.png)",
         backgroundSize: "100%",
       }}
     >
@@ -155,7 +140,7 @@ export default function LoginPage() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/assets/LOGIN-LEFT.png"
+                src="/f/008/assets/LOGIN-LEFT.png"
                 alt="left-bg"
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
               />
@@ -172,7 +157,7 @@ export default function LoginPage() {
               padding: "0 40px",
             }}
           >
-            <div style={{ fontWeight: "bold", fontSize: "32px", marginBottom: "32px", color: tokens.fg, textAlign: "center", width: "100%" }}>
+            <div style={{ fontWeight: "bold", fontSize: "28px", marginBottom: "32px", color: tokens.fg, textAlign: "center", width: "100%", whiteSpace: "nowrap" }}>
               Activity Management System
             </div>
             <div style={{ fontSize: "25px", marginBottom: "32px", color: tokens.fg, textAlign: "center", width: "100%" }}>

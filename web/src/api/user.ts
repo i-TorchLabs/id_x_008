@@ -31,10 +31,14 @@ export interface ApplyRecord {
   activity_end_time: string;
 }
 
-export async function userOauth(oauthToken: string) {
+/** 学生 SSO 登录（ADFS 授权码授予流）：回调页获得 code+state 后调用。
+ *  后端用 client_secret 换 id_token → 验签 → 提取身份 → 建档/更新会话。
+ *  code: ADFS /authorize 回调携带的授权码；
+ *  state: 前端生成的 CSRF 随机串，回调页校验后原样回传。 */
+export async function userOauth(code: string, state: string = "") {
   return gql(`mutation ($input: OauthInput!) {
     user_oauth(input: $input) { code message data }
-  }`, { input: { oauth_token: oauthToken } });
+  }`, { input: { code, state } });
 }
 
 export async function getUserActivityList(input: {

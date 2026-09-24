@@ -1,9 +1,11 @@
 # id_x_008 后端依赖清单（Python 3.10+）
-litestar[standard]>=2.0
-strawberry-graphql[litestar]>=0.200
-sqlalchemy[asyncio]>=2.0
-asyncpg>=0.29
-pandas>=2.0
-openpyxl>=3.1
-xlsxwriter>=3.1
-uvicorn>=0.29
+# 安全策略：使用兼容性约束 >=x,<y 防止意外升级到 breaking/含漏洞的主版本
+litestar[standard]>=2.0,<3.0
+strawberry-graphql[litestar]>=0.200,<1.0
+sqlalchemy[asyncio]>=2.0,<3.0
+asyncpg>=0.29,<1.0
+pandas>=2.0,<3.0
+openpyxl>=3.1,<4.0
+xlsxwriter>=3.1,<4.0
+uvicorn>=0.29,<1.0
+cryptography>=42.0,<45.0

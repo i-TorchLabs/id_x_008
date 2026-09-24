@@ -1,10 +1,11 @@
 "use client";
 
-/** SSO 回调页：接收 ADFS 回跳 token，调用 user_oauth 建档登录。 */
+/** SSO 回调页：ADFS /authorize 重定向后携带 code+state，校验 CSRF 后调用 user_oauth 建档登录。 */
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { userOauth } from "@/api/user";
 import { useUser } from "@/stores/userStore";
+import { OAUTH_STATE_KEY } from "@/utils/sso";
 
 function OauthInner() {
   const params = useSearchParams();
@@ -14,12 +15,23 @@ function OauthInner() {
 
   useEffect(() => {
     let ignore = false;
-    const token = params.get("token") ?? params.get("code") ?? "";
-    if (!token) {
-      setError("Missing SSO Token");
+    const code = params.get("code");
+    const state = params.get("state");
+
+    if (!code) {
+      setError("Missing OAuth authorization code");
       return;
     }
-    userOauth(token).then((res) => {
+
+    // CSRF 校验：state 必须与授权请求时生成并暂存于 sessionStorage 的一致
+    const savedState = sessionStorage.getItem(OAUTH_STATE_KEY);
+    if (!savedState || savedState !== state) {
+      setError("Invalid OAuth response: state mismatch (CSRF check failed)");
+      return;
+    }
+    sessionStorage.removeItem(OAUTH_STATE_KEY);
+
+    userOauth(code, state ?? "").then((res) => {
       if (ignore) return;
       if (res.code === 200 && res.parsed) {
         const d = res.parsed as { user_id: number; name: string; token: string };

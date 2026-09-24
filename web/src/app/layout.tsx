@@ -3,7 +3,7 @@ import "./globals.css";
 import { UserProvider } from "@/stores/userStore";
 
 export const metadata: Metadata = {
-  title: "SME IAO AMS",
+  title: "SME IAO",
   description: "SME IAO 1v1 Consulting Appointment Platform",
 };
 

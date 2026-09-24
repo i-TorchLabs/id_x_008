@@ -1,0 +1,21 @@
+# id_x_008 后端构建排除（避免敏感文件进入镜像层）
+# 注意：构建上下文为仓库根目录，路径以仓库根为基准
+
+# Python 缓存与编译产物
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+*.egg-info/
+
+# 插件本地数据
+x_models/id_x_008/logs/
+x_models/id_x_008/ops/.env
+x_models/id_x_008/web/node_modules/
+x_models/id_x_008/web/.next/
+
+# 版本控制与文档
+**/.git/
+**/.gitignore
+**/.DS_Store
+**/*.md
+**/LICENSE

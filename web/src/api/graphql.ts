@@ -1,6 +1,6 @@
 /** GraphQL 客户端封装：全部业务经单端点 POST /b/id_x_008/graphql 收发。 */
 
-export const GRAPHQL_ENDPOINT = "/b/id_x_008/graphql";
+export const GRAPHQL_ENDPOINT = "/f/008/b/id_x_008/graphql";
 
 export interface ResponseType<T = unknown> {
   code: number;
@@ -27,8 +27,8 @@ function handleUnauthorized(code: number) {
   if (code === 401 && typeof window !== "undefined") {
     localStorage.removeItem("iao_token");
     localStorage.removeItem("iao_user");
-    if (!window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login";
+    if (!window.location.pathname.startsWith("/f/008/login")) {
+      window.location.href = "/f/008/login";
     }
   }
 }

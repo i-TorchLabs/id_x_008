@@ -47,6 +47,10 @@ class Query:
     async def health(self, info: Info) -> HealthType:
         return await x_views.view_health(info)
 
+    @strawberry.field(description="获取 RSA 公钥（用于加密登录密码）")
+    async def public_key(self, info: Info) -> ResponseType:
+        return await x_views.view_public_key(info)
+
     # ----- 学生端 -----
     @strawberry.field(description="学生端活动分页列表")
     async def get_user_activity_list(self, info: Info, input: UserActivityListInput) -> ResponseType:
@@ -179,6 +183,10 @@ class Mutation:
         return await x_views.view_upload_activity(info, input)
 
 
+import os as _os
+
+_IS_PRODUCTION = _os.environ.get("IAO_ENV", "").lower() in ("production", "prod")
+
 schema = strawberry.Schema(
     query=Query,
     mutation=Mutation,
@@ -187,6 +195,9 @@ schema = strawberry.Schema(
         QueryDepthLimiter(max_depth=8),
     ],
 )
+if _IS_PRODUCTION:
+    from strawberry.extensions import DisableIntrospection
+    schema.extensions.append(DisableIntrospection())
 
 
 def register_routers(route_prefix: str) -> Router:

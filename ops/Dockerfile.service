@@ -4,20 +4,15 @@ FROM python:3.10-slim AS builder
 WORKDIR /app/i-Core
 
 # 仅安装生产依赖（x_models/id_x_008/requirements.txt 作为依赖源）
+# 注：所有依赖均有 manylinux x86_64 预编译 wheel，无需 build-essential/libpq-dev
 COPY x_models/id_x_008/requirements.txt ./
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt
 
 FROM python:3.10-slim
 WORKDIR /app/i-Core
 
-# 运行时依赖：curl（健康检查）
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd -r -u 10001 -m appuser
+# useradd 为 Debian 基础组件（passwd 包 Priority: required），始终可用
+RUN useradd -r -u 10001 -m appuser
 
 COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
@@ -36,6 +31,6 @@ USER appuser
 EXPOSE 8101
 
 HEALTHCHECK --interval=10s --timeout=5s --retries=12 --start-period=20s \
-    CMD curl -fsS http://127.0.0.1:8101/b/id_x_008/health || exit 1
+    CMD python -c "from urllib.request import urlopen; urlopen('http://127.0.0.1:8101/b/id_x_008/health')" || exit 1
 
 CMD ["python", "x_models/id_x_008/x_plugin.py"]

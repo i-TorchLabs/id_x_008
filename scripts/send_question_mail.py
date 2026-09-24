@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -30,7 +30,7 @@ QUESTIONNAIRE_URL = "https://sme-activity-apply.cuhk.edu.cn/questionnaire"
 
 
 async def run() -> None:
-    threshold = datetime.now() - timedelta(hours=2)
+    threshold = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=2)
 
     maker = get_session()
     async with maker() as session:
