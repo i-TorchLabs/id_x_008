@@ -40,78 +40,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <AuthGuard role="admin">
-      <div className="flex" style={{ height: "100vh", fontFamily: SF_TEXT }}>
-        {/* ── 左侧菜单（n-layout-sider：白底 + 紫色 Logo 栏） ── */}
-        <aside
-          className="shrink-0 flex flex-col"
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column", fontFamily: SF_TEXT }}>
+        {/* ── 统一顶栏（横跨全宽）：Logo + 用户名 + 登出 ── */}
+        <header
+          className="flex items-center justify-between shrink-0"
           style={{
-            width: "200px",
-            background: tokens.card,
-            borderRight: `1px solid ${tokens.divider}`,
+            height: "56px",
+            padding: "0 16px",
+            background: tokens.accent,
           }}
         >
-          <div
-            className="flex items-center justify-center"
-            style={{
-              height: "60px",
-              background: tokens.accent,
-              borderBottom: `1px solid ${tokens.divider}`,
-              padding: "0 8px",
-            }}
-          >
-            <span className="text-white" style={{ fontSize: "15px", fontWeight: 700 }}>
-              SME IAO Admin
-            </span>
-          </div>
-          {/* IAO 分组菜单 */}
-          <div style={{ padding: "8px 0" }}>
-            <div
-              style={{
-                padding: "8px 16px",
-                fontSize: "13px",
-                fontWeight: 600,
-                color: tokens.fg3,
-              }}
-            >
-              Home
-            </div>
-            {MENU.map((m) => {
-              const active = pathname?.startsWith(m.href);
-              return (
-                <Link
-                  key={m.href}
-                  href={m.href}
-                  className="transition-colors duration-150"
-                  style={{
-                    display: "block",
-                    padding: "10px 16px 10px 28px",
-                    fontSize: "14px",
-                    fontWeight: active ? 600 : 400,
-                    color: active ? tokens.accent : tokens.fg2,
-                    background: active ? tokens.accentSoft : "transparent",
-                    borderRight: active ? `2px solid ${tokens.accent}` : "2px solid transparent",
-                    textDecoration: "none",
-                  }}
-                >
-                  {m.label}
-                </Link>
-              );
-            })}
-          </div>
-        </aside>
+          {/* 左侧：Logo（背景与紫色融合） */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/f/008/assets/CUHKSZ.png"
+            alt="CUHKSZ"
+            style={{ height: "36px", width: "auto", flexShrink: 0, mixBlendMode: "multiply" }}
+          />
 
-        {/* ── 右侧主区域 ── */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          {/* 紫色顶栏（60px） */}
-          <header
-            className="flex items-center justify-between shrink-0"
-            style={{
-              height: "60px",
-              padding: "0 20px",
-              background: tokens.accent,
-            }}
-          >
-            <span className="text-white" style={{ fontWeight: 700, fontSize: "15px" }}>
+          {/* 右侧：用户名 + 登出 */}
+          <div className="flex items-center gap-3 shrink-0">
+            <span style={{ fontWeight: 700, fontSize: "15px", color: "#ffffff" }}>
               {user?.name}
             </span>
             <button
@@ -136,32 +85,84 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <path d="M21 12H9" />
               </svg>
             </button>
-          </header>
+          </div>
+        </header>
 
-          {/* 面包屑（40px） */}
-          <div
-            className="flex items-center shrink-0"
+        {/* ── 下方：侧栏 + 内容（flex 撑满剩余高度） ── */}
+        <div className="flex flex-1 min-h-0">
+          {/* 左侧菜单（白底） */}
+          <aside
+            className="shrink-0 flex flex-col"
             style={{
-              height: "40px",
-              padding: "0 8px",
+              width: "200px",
               background: tokens.card,
-              borderBottom: `1px solid ${tokens.divider}`,
-              fontSize: "13px",
-              color: tokens.fg3,
+              borderRight: `1px solid ${tokens.divider}`,
             }}
           >
-            <span>Admin</span>
-            <span style={{ margin: "0 8px" }}>/</span>
-            <span style={{ color: tokens.fg }}>{currentTitle ?? ""}</span>
-          </div>
+            {/* IAO 分组菜单 */}
+            <div style={{ padding: "8px 0" }}>
+              <div
+                style={{
+                  padding: "8px 16px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: tokens.fg3,
+                }}
+              >
+                Home
+              </div>
+              {MENU.map((m) => {
+                const active = pathname?.startsWith(m.href);
+                return (
+                  <Link
+                    key={m.href}
+                    href={m.href}
+                    className="transition-colors duration-150"
+                    style={{
+                      display: "block",
+                      padding: "10px 16px 10px 28px",
+                      fontSize: "14px",
+                      fontWeight: active ? 600 : 400,
+                      color: active ? tokens.accent : tokens.fg2,
+                      background: active ? tokens.accentSoft : "transparent",
+                      borderRight: active ? `2px solid ${tokens.accent}` : "2px solid transparent",
+                      textDecoration: "none",
+                    }}
+                  >
+                    {m.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </aside>
 
-          {/* 灰色内容区 */}
-          <main
-            className="flex-1 min-h-0 overflow-y-auto"
-            style={{ background: tokens.bg, padding: "8px" }}
-          >
-            {children}
-          </main>
+          {/* 右侧：面包屑 + 内容 */}
+          <div className="flex-1 min-w-0 flex flex-col">
+            {/* 面包屑（36px 白底） */}
+            <div
+              className="flex items-center shrink-0"
+              style={{
+                height: "36px",
+                padding: "0 16px",
+                background: tokens.card,
+                borderBottom: `1px solid ${tokens.divider}`,
+                fontSize: "13px",
+                color: tokens.fg3,
+              }}
+            >
+              <span>Admin</span>
+              <span style={{ margin: "0 8px" }}>/</span>
+              <span style={{ color: tokens.fg }}>{currentTitle ?? ""}</span>
+            </div>
+
+            {/* 灰色内容区 */}
+            <main
+              className="flex-1 min-h-0 overflow-y-auto"
+              style={{ background: tokens.bg, padding: "8px" }}
+            >
+              {children}
+            </main>
+          </div>
         </div>
       </div>
 
