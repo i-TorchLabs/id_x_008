@@ -23,6 +23,7 @@ import secrets
 import smtplib
 import string
 import time
+import traceback
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -100,13 +101,15 @@ STATUS_CLOSED = "Closed"
 
 
 # ===== OAuth2 配置（敏感信息经环境变量注入） =====
+# 参照 id_x_003 模式：所有配置均通过环境变量注入，不硬编码任何值
 OAUTH_CLIENT_ID = os.environ.get("IAO_OAUTH_CLIENT_ID", "")
 OAUTH_CLIENT_SECRET = os.environ.get("IAO_OAUTH_CLIENT_SECRET", "")
 OAUTH_REDIRECT_URI = os.environ.get("IAO_OAUTH_REDIRECT_URI", "")
+OAUTH_BUSINESS_URL = os.environ.get("IAO_OAUTH_BUSINESS_URL", "").rstrip("/")
 
 
 def _oauth_config_missing() -> bool:
-    """SSO 服务端配置是否缺失。"""
+    """SSO 核心配置是否缺失（OAuth 流程依赖 client_id/secret/redirect_uri）。"""
     return not (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI)
 
 
@@ -423,6 +426,31 @@ async def view_public_key(info: Info) -> ResponseType:
     return _resp(200, "success", {"public_key": get_public_key()})
 
 
+# ===== SSO 配置分发（前端初始化时获取） =====
+async def view_sso_config(info: Info) -> ResponseType:
+    """向前端暴露 SSO 配置（不含 client_secret）。
+
+    参照 id_x_003 模式：后端统一管理配置，前端通过接口获取。
+    返回：adfs_authorize_url、client_id、redirect_uri、business_url、sso_enabled。
+    """
+    if _oauth_config_missing():
+        logger.warning(f"{_rid()}SSO 配置不完整，sso_enabled=false")
+        return _resp(200, "success", {
+            "sso_enabled": False,
+            "adfs_authorize_url": "",
+            "client_id": "",
+            "redirect_uri": "",
+            "business_url": "",
+        })
+    return _resp(200, "success", {
+        "sso_enabled": True,
+        "adfs_authorize_url": x_oauth.ADFS_AUTHORIZE_URL,
+        "client_id": OAUTH_CLIENT_ID,
+        "redirect_uri": OAUTH_REDIRECT_URI,
+        "business_url": OAUTH_BUSINESS_URL,
+    })
+
+
 # ===== 认证 =====
 async def view_login(info: Info, input: LoginInput) -> ResponseType:
     # 登录限速：按用户名 + 客户端 IP 组合识别
@@ -465,7 +493,7 @@ async def view_login(info: Info, input: LoginInput) -> ResponseType:
                 "token": token,
             })
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -483,7 +511,7 @@ async def view_logout(info: Info) -> ResponseType:
                 await session.commit()
             return _resp(200, "success")
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -596,7 +624,7 @@ async def view_user_oauth(info: Info, input: OauthInput) -> ResponseType:
                         grade="N/A",
                         number=number,
                         email=email,
-                        time=datetime.now(timezone.utc),
+                        time=datetime.now(timezone.utc).replace(tzinfo=None),
                     )
                     session.add(user)
                     await session.commit()
@@ -616,7 +644,7 @@ async def view_user_oauth(info: Info, input: OauthInput) -> ResponseType:
                 user.name = name
                 user.email = email
                 user.number = number
-                user.time = datetime.now(timezone.utc)
+                user.time = datetime.now(timezone.utc).replace(tzinfo=None)
                 await session.commit()
                 return _resp(200, "success", {
                     "user_id": user.id,
@@ -641,7 +669,7 @@ async def view_user_oauth(info: Info, input: OauthInput) -> ResponseType:
                     grade=payload_data.get("grade", "N/A"),
                     number=number,
                     email=payload_data.get("email", "N/A"),
-                    time=datetime.now(timezone.utc),
+                    time=datetime.now(timezone.utc).replace(tzinfo=None),
                 )
                 session.add(user)
                 await session.flush()
@@ -656,7 +684,7 @@ async def view_user_oauth(info: Info, input: OauthInput) -> ResponseType:
                 "token": token,
             })
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -688,7 +716,7 @@ async def view_get_user_activity_list(info: Info, input: UserActivityListInput) 
             page = items[(offset - 1) * limit: offset * limit]
             return _resp(200, "success", {"total": total, "list": page})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -731,7 +759,7 @@ async def view_get_user_activity_detail(info: Info, input: ActivityDetailInput) 
             occupied = [a.info_1 for a in applies if a.info_1 and a.info_1 != "N/A"]
             return _resp(200, "success", _activity_dict(activity, project, len(applies), occupied))
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -745,7 +773,7 @@ async def view_fuzzy_activity_name(info: Info, input: FuzzyNameInput) -> Respons
             ).distinct())
             return _resp(200, "success", {"name_list": [r[0] for r in result.all()]})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -845,7 +873,7 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
                 info_1=input.info_1 or "N/A",
                 info_2=input.info_2 or "N/A",
                 info_3=input.info_3 or "N/A",
-                time=datetime.now(timezone.utc),
+                time=now,
             )
             session.add(obj)
             await session.commit()
@@ -880,7 +908,7 @@ async def view_apply_activity(info: Info, input: ApplyInput) -> ResponseType:
 
             return _resp(200, "success", _apply_dict(obj, activity))
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -941,7 +969,7 @@ async def view_cancel_apply(info: Info, input: CancelApplyInput) -> ResponseType
 
             return _resp(200, "success", {"apply_id": input.apply_id})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -979,7 +1007,7 @@ async def view_get_project_list(info: Info, input: PageInput) -> ResponseType:
             } for p in page]
             return _resp(200, "success", {"total": total, "list": items})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -997,7 +1025,8 @@ async def view_create_project(info: Info, input: CreateProjectInput) -> Response
                 return _resp(403, "Project name already exists")
             # 富文本 XSS 净化：移除 script/event-handler 等危险标签/属性
             sanitized_content = _sanitize_html(input.project_content)
-            content_obj = IaoEnlistContent(content=sanitized_content, time=datetime.now(timezone.utc))
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            content_obj = IaoEnlistContent(content=sanitized_content, time=now)
             session.add(content_obj)
             await session.flush()
             project = IaoEnlistProject(
@@ -1006,14 +1035,14 @@ async def view_create_project(info: Info, input: CreateProjectInput) -> Response
                 content=sanitized_content,
                 content_ex_id=content_obj.id,
                 owner=input.owner,
-                time=datetime.now(timezone.utc),
-                update=datetime.now(timezone.utc),
+                time=now,
+                update=now,
             )
             session.add(project)
             await session.commit()
             return _resp(200, "success", {"project_id": project.id})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1041,7 +1070,7 @@ async def view_update_project(info: Info, input: UpdateProjectInput) -> Response
             project.quota = input.quota
             if input.owner:
                 project.owner = input.owner
-            project.update = datetime.now(timezone.utc)
+            project.update = datetime.now(timezone.utc).replace(tzinfo=None)
             if project.content_ex_id:
                 content_obj = await _first(session, select(IaoEnlistContent).where(
                     IaoEnlistContent.id == project.content_ex_id
@@ -1051,7 +1080,7 @@ async def view_update_project(info: Info, input: UpdateProjectInput) -> Response
             await session.commit()
             return _resp(200, "success", {"project_id": project.id})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1077,7 +1106,7 @@ async def view_delete_project(info: Info, input: ProjectIdInput) -> ResponseType
             await session.commit()
             return _resp(200, "success", {"project_id": input.project_id})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1102,7 +1131,7 @@ async def view_search_project(info: Info, input: SearchProjectInput) -> Response
             } for p in result.scalars().all()]
             return _resp(200, "success", {"total": len(items), "list": items})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1117,7 +1146,7 @@ async def view_search_project_owner(info: Info) -> ResponseType:
             items = [{"name": o.name, "email": o.email} for o in result.scalars().all()]
             return _resp(200, "success", {"owner_list": items})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1132,7 +1161,7 @@ async def view_get_project_name_list(info: Info) -> ResponseType:
             items = [{"project_id": r[0], "project_name": r[1]} for r in result.all()]
             return _resp(200, "success", {"name_list": items})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1166,7 +1195,7 @@ async def view_get_activity_list(info: Info, input: PageInput) -> ResponseType:
             page = items[(offset - 1) * limit: offset * limit]
             return _resp(200, "success", {"total": total, "list": page})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1194,7 +1223,7 @@ async def view_get_activity_detail(info: Info, input: ActivityIdInput) -> Respon
                 "list": items,
             })
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1210,6 +1239,7 @@ async def view_create_activity(info: Info, input: CreateActivityInput) -> Respon
             ))
             if not project:
                 return _resp(404, "Project not found")
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             activity = IaoEnlistActivity(
                 name=input.activity_name or project.name,
                 project_id=input.project_id,
@@ -1217,14 +1247,14 @@ async def view_create_activity(info: Info, input: CreateActivityInput) -> Respon
                 activity_end_time=_ms_to_dt(input.activity_end_time),
                 apply_start_time=_ms_to_dt(input.apply_start_time),
                 apply_end_time=_ms_to_dt(input.apply_end_time),
-                time=datetime.now(timezone.utc),
-                update=datetime.now(timezone.utc),
+                time=now,
+                update=now,
             )
             session.add(activity)
             await session.commit()
             return _resp(200, "success", {"activity_id": activity.id})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1260,11 +1290,11 @@ async def view_update_activity(info: Info, input: UpdateActivityInput) -> Respon
                     if parsed is None:
                         return _resp(400, f"Invalid {field}")
                     setattr(activity, field, parsed)
-            activity.update = datetime.now(timezone.utc)
+            activity.update = datetime.now(timezone.utc).replace(tzinfo=None)
             await session.commit()
             return _resp(200, "success", {"activity_id": activity.id})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1286,7 +1316,7 @@ async def view_delete_activity(info: Info, input: ActivityIdInput) -> ResponseTy
             await session.commit()
             return _resp(200, "success", {"activity_id": input.activity_id})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1330,7 +1360,7 @@ async def _search_activity_by_name(info: Info, input: SearchActivityInput) -> Re
             page = items[(offset - 1) * limit: offset * limit]
             return _resp(200, "success", {"total": total, "list": page})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1360,7 +1390,7 @@ async def view_get_activity_name_list(info: Info, input: ActivityNameListInput) 
                 "name_list": names[(offset - 1) * limit: offset * limit],
             })
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1376,7 +1406,7 @@ async def view_fuzzy_export_activity_name(info: Info, input: FuzzyNameInput) -> 
             ).distinct())
             return _resp(200, "success", {"name_list": [r[0] for r in result.all()]})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1439,8 +1469,9 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
                         existing.activity_end_time = end_time
                         existing.apply_start_time = apply_start
                         existing.apply_end_time = apply_end
-                        existing.update = datetime.now(timezone.utc)
+                        existing.update = datetime.now(timezone.utc).replace(tzinfo=None)
                     else:
+                        now = datetime.now(timezone.utc).replace(tzinfo=None)
                         session.add(IaoEnlistActivity(
                             name=name,
                             project_id=project.id,
@@ -1448,8 +1479,8 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
                             activity_end_time=end_time,
                             apply_start_time=apply_start,
                             apply_end_time=apply_end,
-                            time=datetime.now(timezone.utc),
-                            update=datetime.now(timezone.utc),
+                            time=now,
+                            update=now,
                         ))
                     success_count += 1
                 except Exception as row_err:
@@ -1458,7 +1489,7 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
             await session.commit()
             return _resp(200, "success", {"success_count": success_count, "fail_count": fail_count})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1492,7 +1523,7 @@ async def view_download_activity_template(info: Info) -> FileResponseType:
         content = _build_template_xlsx()
         return _file_resp(200, "success", "activity_template.xlsx", base64.b64encode(content).decode())
     except Exception as e:
-        logger.error(f"{_rid()}{e}")
+        logger.error(f"{_rid()}{traceback.format_exc()}")
         return _file_resp(500, "Server error")
 
 
@@ -1547,7 +1578,7 @@ async def view_export_activity(info: Info, input: ExportActivityInput) -> FileRe
             content = _build_export_xlsx(rows)
             return _file_resp(200, "success", "activity_export.xlsx", base64.b64encode(content).decode())
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _file_resp(500, "Server error")
 
@@ -1562,7 +1593,7 @@ async def view_search_query_title(info: Info) -> ResponseType:
             result = await session.execute(select(IaoEnlistActivity.name).distinct())
             return _resp(200, "success", {"title_list": [r[0] for r in result.all()]})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1584,7 +1615,7 @@ async def view_search_query_data(info: Info, input: QueryDataInput) -> ResponseT
             limit = max(input.limit, 1)
             return _resp(200, "success", {"total": total, "list": rows[(offset - 1) * limit: offset * limit]})
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _resp(500, "Server error")
 
@@ -1599,6 +1630,6 @@ async def view_download_query_data(info: Info, input: TitleListInput) -> FileRes
             content = _build_export_xlsx(rows)
             return _file_resp(200, "success", "query_data.xlsx", base64.b64encode(content).decode())
         except Exception as e:
-            logger.error(f"{_rid()}{e}")
+            logger.error(f"{_rid()}{traceback.format_exc()}")
             await session.rollback()
             return _file_resp(500, "Server error")

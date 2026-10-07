@@ -44,6 +44,13 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        // ADFS 注册的回调地址（认证信息回传地址）为 /f/008/user/oauth2。
+        // 但 /user 布局带 AuthGuard，会在 SSO 会话建立前把回调弹回 /login，
+        // 故改写至顶层 /oauth2 页（/f/008/user/oauth2，root layout，无鉴权守卫）。
+        source: "/user/oauth2",
+        destination: "/oauth2",
+      },
+      {
         source: "/b/:path*",
         destination: `${process.env.BACKEND_URL ?? "http://localhost:8101"}/b/:path*`,
       },

@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { type ActivityItem, getUserActivityList } from "@/api/user";
 import CalendarComponent from "@/components/CalendarComponent";
 import {
-  Badge, Card, EmptyState, PillButton, RadioButtonGroup,
+  Badge, Card, EmptyState, PageTitle, PillButton, RadioButtonGroup,
   inputBaseStyle, tableStyle, tdMonoStyle, tdPrimaryStyle, tdStyle, thStyle,
 } from "@/components/ui";
 import { SF_TEXT, tokens } from "@/utils/tokens";
@@ -46,11 +46,18 @@ export default function UserHomePage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontFamily: SF_TEXT }}>
-      {/* ── 紫色横幅卡 ── */}
-      <Card style={{ background: tokens.accent, border: "none", textAlign: "center" }}>
-        <span style={{ fontSize: "24px", color: "#fff", fontWeight: 500 }}>
-          SME IAO 1v1 Consulting Program
-        </span>
+      {/* ── 页眉工具条：与 /admin/project-management 页眉保持一致 ── */}
+      <Card noPadding>
+        <div style={{ padding: "16px 24px" }}>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <PageTitle>Activities List</PageTitle>
+            <div className="flex gap-2 items-center">
+              <PillButton primary onClick={() => router.push("/user/records")}>
+                My Records
+              </PillButton>
+            </div>
+          </div>
+        </div>
       </Card>
 
       {/* ── 筛选条 ── */}
@@ -74,9 +81,6 @@ export default function UserHomePage() {
               Search
             </PillButton>
           </div>
-          <PillButton primary onClick={() => router.push("/user/records")}>
-            My Records
-          </PillButton>
         </div>
       </Card>
 

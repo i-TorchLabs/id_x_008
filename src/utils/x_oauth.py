@@ -28,13 +28,21 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from ...utils.log_util import logger
 
-# ===== 默认 ADFS 端点（可用环境变量覆盖） =====
-ADFS_BASE = "https://sts.cuhk.edu.cn/adfs/oauth2"
+# ===== ADFS 端点（环境变量覆盖优先，否则使用默认值） =====
+# 参照 id_x_003 模式：所有端点均通过环境变量注入，避免硬编码
+_ADFS_BASE_ENV = os.environ.get("IAO_OAUTH_ADFS_BASE", "").strip().rstrip("/")
+ADFS_BASE = _ADFS_BASE_ENV or "https://sts.cuhk.edu.cn/adfs/oauth2"
 ADFS_AUTHORIZE_URL = f"{ADFS_BASE}/authorize"
 ADFS_TOKEN_URL = f"{ADFS_BASE}/token"
 # ADFS 标准发现文档，内含 jwks_uri
-ADFS_DISCOVERY_URL = "https://sts.cuhk.edu.cn/adfs/.well-known/openid-configuration"
-ADFS_DEFAULT_JWKS_URL = "https://sts.cuhk.edu.cn/adfs/discovery/keys"
+ADFS_DISCOVERY_URL = os.environ.get(
+    "IAO_OAUTH_ADFS_DISCOVERY_URL",
+    "https://sts.cuhk.edu.cn/adfs/.well-known/openid-configuration",
+).strip()
+ADFS_DEFAULT_JWKS_URL = os.environ.get(
+    "IAO_OAUTH_ADFS_JWKS_URL",
+    "https://sts.cuhk.edu.cn/adfs/discovery/keys",
+).strip()
 
 
 def _b64url_decode(data: str) -> bytes:

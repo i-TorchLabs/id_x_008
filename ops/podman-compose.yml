@@ -38,10 +38,28 @@ services:
       IAO_DB_ENCRYPTED: ${IAO_DB_ENCRYPTED:-}
       IAO_SECRET_KEY: ${IAO_SECRET_KEY:-}
       IAO_MAIL_PASSWORD: ${IAO_MAIL_PASSWORD:-}
+      IAO_MAIL_USER: ${IAO_MAIL_USER:-}
+      IAO_MAIL_FROM: ${IAO_MAIL_FROM:-}
+      # OAuth2 / SSO 配置（参照 id_x_003 模式：环境变量注入）
+      IAO_ENV: ${IAO_ENV:-production}
+      IAO_OAUTH_CLIENT_ID: ${IAO_OAUTH_CLIENT_ID:-}
+      IAO_OAUTH_CLIENT_SECRET: ${IAO_OAUTH_CLIENT_SECRET:-}
+      IAO_OAUTH_REDIRECT_URI: ${IAO_OAUTH_REDIRECT_URI:-}
+      IAO_OAUTH_BUSINESS_URL: ${IAO_OAUTH_BUSINESS_URL:-}
+      IAO_OAUTH_ADFS_BASE: ${IAO_OAUTH_ADFS_BASE:-}
+      IAO_OAUTH_ADFS_DISCOVERY_URL: ${IAO_OAUTH_ADFS_DISCOVERY_URL:-}
+      IAO_OAUTH_ADFS_JWKS_URL: ${IAO_OAUTH_ADFS_JWKS_URL:-}
+      IAO_OAUTH_UPN_CLAIM: ${IAO_OAUTH_UPN_CLAIM:-}
+      IAO_OAUTH_EMAIL_CLAIM: ${IAO_OAUTH_EMAIL_CLAIM:-}
+      IAO_OAUTH_CLOCK_SKEW_SECONDS: ${IAO_OAUTH_CLOCK_SKEW_SECONDS:-}
+      IAO_OAUTH_NONCE: ${IAO_OAUTH_NONCE:-}
       IAO_PORT: "8101"
       PROJECT_PATH: /app/i-Core
     volumes:
       # 日志挂载:宿主机 x_models/id_x_008/logs -> 容器 /app/i-Core/logs
+      # 注意：容器以非特权 appuser 运行，部署前需保证宿主机目录可写
+      # （mkdir -p logs && chmod 777 logs，或 chown 10001 logs），
+      # 否则 log_util 会静默退化为仅 stdout，宿主目录仍看不到文件。
       - ../logs:/app/i-Core/logs
     depends_on:
       db:
@@ -51,6 +69,11 @@ services:
     build:
       context: ../web
       dockerfile: Dockerfile
+      # 前端 ADFS SSO 公开配置（构建期内联为 NEXT_PUBLIC_*，不含 client_secret）
+      args:
+        NEXT_PUBLIC_ADFS_CLIENT_ID: ${NEXT_PUBLIC_ADFS_CLIENT_ID:-${IAO_OAUTH_CLIENT_ID:-d5b6ea03-977a-4885-b081-4d67e257455b}}
+        NEXT_PUBLIC_ADFS_REDIRECT_URI: ${NEXT_PUBLIC_ADFS_REDIRECT_URI:-https://sme-iao.cuhk.edu.cn/f/008/user/oauth2}
+        NEXT_PUBLIC_ADFS_RESOURCE: ${NEXT_PUBLIC_ADFS_RESOURCE:-${IAO_OAUTH_BUSINESS_URL:-https://sme-iao.cuhk.edu.cn}}
     image: id_x_008_web:latest
     container_name: id_x_008_web
     restart: unless-stopped

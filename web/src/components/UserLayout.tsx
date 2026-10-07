@@ -1,9 +1,10 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { logout } from "@/api/user";
 import { useUser } from "@/stores/userStore";
+import { redirectToAdfsLogout } from "@/utils/sso";
 import AuthGuard from "./AuthGuard";
 import { Modal, PillButton } from "./ui";
 import { SF_TEXT, tokens } from "@/utils/tokens";
@@ -16,17 +17,23 @@ const TITLE_MAP: Record<string, string> = {
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { logoutLocal } = useUser();
-  const router = useRouter();
   const pathname = usePathname();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  // 学生登出：先尽力通知后端使会话失效（失败不阻塞），再清空本地会话（含缓存），
+  // 最后整页跳转 ADFS 登出端点以清掉浏览器中的 SSO 会话（复刻 id_x_003 userlogout）。
   const handleLogout = async () => {
     setShowLogoutConfirm(false);
     try {
       await logout();
     } catch {}
     logoutLocal();
-    router.replace("/login");
+    localStorage.clear();
+    sessionStorage.clear();
+    if (typeof window !== "undefined" && "caches" in window) {
+      caches.keys().then((names) => names.forEach((n) => caches.delete(n)));
+    }
+    redirectToAdfsLogout();
   };
 
   const currentTitle = Object.entries(TITLE_MAP).find(([k]) => pathname?.startsWith(k))?.[1];
@@ -43,7 +50,13 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
             background: tokens.accent,
           }}
         >
-          <div />
+          {/* 左上角：Logo（与 admin 顶栏一致） */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/f/008/assets/CUHKSZ.png"
+            alt="CUHKSZ"
+            style={{ height: "44px", width: "auto", flexShrink: 0 }}
+          />
           <span className="text-white" style={{ fontWeight: 700, fontSize: "15px" }}>
             {currentTitle ?? ""}
           </span>

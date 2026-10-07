@@ -33,3 +33,13 @@ SELECT 'rayzha@cuhk.edu.cn',
 WHERE NOT EXISTS (
     SELECT 1 FROM iao_enlist_user WHERE username = 'rayzha@cuhk.edu.cn'
 );
+
+INSERT INTO iao_enlist_user (username, password, role, name, email)
+SELECT 'sme@cuhk.edu.cn',
+       '$pbkdf2_sha256$600000$oy/7cPccAoayCXnn2BhEaxbx1GOfLyhIgZl34fLwDcE=$/l7R9HZe44gi8O8SoVd+Woy1PmsZdL9VmNhnigCM1KE=',
+       'admin',
+       'SME Admin',
+       'sme@cuhk.edu.cn'
+WHERE NOT EXISTS (
+    SELECT 1 FROM iao_enlist_user WHERE username = 'sme@cuhk.edu.cn'
+);

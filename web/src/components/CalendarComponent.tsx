@@ -36,6 +36,12 @@ export default function CalendarComponent({
         center: "title",
         right: "timeGridWeek,dayGridMonth,timeGridDay",
       }}
+      // 用简洁箭头替代 FullCalendar 默认的文本按钮（prev/next）
+      buttonText={{
+        prev: "‹",
+        next: "›",
+        today: "Today",
+      }}
       events={events}
       height="auto"
       eventClick={(info) => onSelect?.(Number(info.event.id))}

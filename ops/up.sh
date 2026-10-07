@@ -20,7 +20,13 @@ if [ "${1:-}" = "--build" ] || ! podman image exists "${PLUGIN}_service"; then
     podman build --format docker --network=host -t "${PLUGIN}_service" -f "${OPS_DIR}/Dockerfile.service" "${REPO_ROOT}"
 fi
 if [ "${1:-}" = "--build" ] || ! podman image exists "${PLUGIN}_web"; then
-    podman build --format docker --network=host -t "${PLUGIN}_web" "${OPS_DIR}/../web"
+    # 前端 ADFS SSO 公开配置在构建期内联为 NEXT_PUBLIC_*（不含 client_secret）。
+    # 默认值与 .env.example 对齐：未显式配置时仍可发起真实 SSO，而非卡在占位默认值。
+    podman build --format docker --network=host \
+        --build-arg NEXT_PUBLIC_ADFS_CLIENT_ID="${NEXT_PUBLIC_ADFS_CLIENT_ID:-d5b6ea03-977a-4885-b081-4d67e257455b}" \
+        --build-arg NEXT_PUBLIC_ADFS_REDIRECT_URI="${NEXT_PUBLIC_ADFS_REDIRECT_URI:-https://sme-iao.cuhk.edu.cn/f/008/user/oauth2}" \
+        --build-arg NEXT_PUBLIC_ADFS_RESOURCE="${NEXT_PUBLIC_ADFS_RESOURCE:-https://sme-iao.cuhk.edu.cn}" \
+        -t "${PLUGIN}_web" "${OPS_DIR}/../web"
 fi
 
 # 3. Pod（已存在则跳过）
@@ -54,8 +60,12 @@ done
 
 if ! podman container exists "${PLUGIN}_service"; then
     # 日志挂载:宿主机 x_models/id_x_008/logs -> 容器 /app/i-Core/logs
-    mkdir -p "${OPS_DIR}/../../logs"
+    # （先建目录；若本地直接跑 up.sh 而非 compose，需保证目录可写）
+    mkdir -p "${OPS_DIR}/../logs"
+    # 容器以非特权 appuser 运行，宿主机挂载目录需可写，否则文件日志会退化/丢失
+    chmod 777 "${OPS_DIR}/../logs"
     podman run -d --pod "${PLUGIN}" --name "${PLUGIN}_service" \
+        -v "${OPS_DIR}/../logs:/app/i-Core/logs" \
         -e DB_NAME="${POSTGRES_DB}" \
         -e DB_HOST=127.0.0.1 \
         -e DB_PORT=5432 \
@@ -63,13 +73,23 @@ if ! podman container exists "${PLUGIN}_service"; then
         -e DB_PASSWORD="${POSTGRES_PASSWORD}" \
         -e IAO_DB_ENCRYPTED="${IAO_DB_ENCRYPTED:-}" \
         -e IAO_SECRET_KEY="${IAO_SECRET_KEY:-}" \
+        -e IAO_ENV="${IAO_ENV:-production}" \
         -e IAO_MAIL_PASSWORD="${IAO_MAIL_PASSWORD:-}" \
+        -e IAO_MAIL_USER="${IAO_MAIL_USER:-}" \
+        -e IAO_MAIL_FROM="${IAO_MAIL_FROM:-}" \
         -e IAO_OAUTH_CLIENT_ID="${IAO_OAUTH_CLIENT_ID:-}" \
         -e IAO_OAUTH_CLIENT_SECRET="${IAO_OAUTH_CLIENT_SECRET:-}" \
         -e IAO_OAUTH_REDIRECT_URI="${IAO_OAUTH_REDIRECT_URI:-}" \
+        -e IAO_OAUTH_BUSINESS_URL="${IAO_OAUTH_BUSINESS_URL:-}" \
+        -e IAO_OAUTH_ADFS_BASE="${IAO_OAUTH_ADFS_BASE:-}" \
+        -e IAO_OAUTH_ADFS_DISCOVERY_URL="${IAO_OAUTH_ADFS_DISCOVERY_URL:-}" \
+        -e IAO_OAUTH_ADFS_JWKS_URL="${IAO_OAUTH_ADFS_JWKS_URL:-}" \
+        -e IAO_OAUTH_UPN_CLAIM="${IAO_OAUTH_UPN_CLAIM:-}" \
+        -e IAO_OAUTH_EMAIL_CLAIM="${IAO_OAUTH_EMAIL_CLAIM:-}" \
+        -e IAO_OAUTH_CLOCK_SKEW_SECONDS="${IAO_OAUTH_CLOCK_SKEW_SECONDS:-}" \
+        -e IAO_OAUTH_NONCE="${IAO_OAUTH_NONCE:-}" \
         -e IAO_PORT=8101 \
         -e PROJECT_PATH=/app/i-Core \
-        -v "${OPS_DIR}/../../logs:/app/i-Core/logs" \
         "${PLUGIN}_service"
 fi
 

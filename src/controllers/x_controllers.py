@@ -51,6 +51,10 @@ class Query:
     async def public_key(self, info: Info) -> ResponseType:
         return await x_views.view_public_key(info)
 
+    @strawberry.field(description="获取 SSO 配置（前端初始化时调用）")
+    async def sso_config(self, info: Info) -> ResponseType:
+        return await x_views.view_sso_config(info)
+
     # ----- 学生端 -----
     @strawberry.field(description="学生端活动分页列表")
     async def get_user_activity_list(self, info: Info, input: UserActivityListInput) -> ResponseType:
@@ -187,17 +191,17 @@ import os as _os
 
 _IS_PRODUCTION = _os.environ.get("IAO_ENV", "").lower() in ("production", "prod")
 
+extensions = [QueryDepthLimiter(max_depth=8)]
+if _IS_PRODUCTION:
+    from strawberry.extensions import DisableIntrospection
+    extensions.append(DisableIntrospection())
+
 schema = strawberry.Schema(
     query=Query,
     mutation=Mutation,
     config=StrawberryConfig(auto_camel_case=False),
-    extensions=[
-        QueryDepthLimiter(max_depth=8),
-    ],
+    extensions=extensions,
 )
-if _IS_PRODUCTION:
-    from strawberry.extensions import DisableIntrospection
-    schema.extensions.append(DisableIntrospection())
 
 
 def register_routers(route_prefix: str) -> Router:

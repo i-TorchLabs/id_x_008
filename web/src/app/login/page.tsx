@@ -41,7 +41,7 @@ export default function LoginPage() {
     }
   };
 
-  // 学生 SSO：跳转 CUHK ADFS /authorize（授权码授予流）
+  // 学生 SSO：跳转 CUHK ADFS /authorize（授权码授予流），登录成功后由回调页转至 /user/home
   const doSso = () => {
     redirectToAdfsAuthorize();
   };
