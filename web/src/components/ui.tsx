@@ -243,6 +243,27 @@ export const ErrorText = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
+// ── 状态回显：成功绿色、失败红色，文字大写 ──
+export const StatusMessage = ({
+  message,
+  success,
+}: {
+  message: string;
+  success: boolean;
+}) => (
+  <div
+    style={{
+      fontFamily: SF_TEXT,
+      fontSize: "13px",
+      color: success ? tokens.success : tokens.error,
+      textTransform: "uppercase",
+      marginBottom: "12px",
+    }}
+  >
+    {message}
+  </div>
+);
+
 // ── LoadingDots：三点脉冲加载 ──
 export const LoadingDots = ({ size = "md" }: { size?: "sm" | "md" }) => {
   const d = size === "sm" ? 4 : 6;

@@ -17,6 +17,7 @@ export interface DesignTokens {
   accentFg: string;
   accentSoft: string;
   error: string;
+  success: string;
   navBg: string;
   inputBg: string;
   inputBorder: string;
@@ -41,6 +42,7 @@ export const tokens: DesignTokens = {
   accentFg: "#ffffff",
   accentSoft: "rgba(118,56,144,0.12)",
   error: "#d03050",
+  success: "#18a058",
   navBg: "#763890",
   inputBg: "#ffffff",
   inputBorder: "#e0e0e6",

@@ -7,7 +7,7 @@ import {
 } from "@/api/admin";
 import ProjectForm, { type ProjectFormValue } from "@/components/ProjectForm";
 import {
-  Card, EmptyState, ErrorText, Modal, PageTitle, PillButton, SortOrderButton, type SortOrder,
+  Card, EmptyState, Modal, PageTitle, PillButton, SortOrderButton, StatusMessage, type SortOrder,
   tableStyle, tdMonoStyle, tdPrimaryStyle, tdStyle, thStyle,
 } from "@/components/ui";
 import { SF_TEXT, tokens } from "@/utils/tokens";
@@ -21,6 +21,7 @@ export default function ProjectManagementPage() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<ProjectItem | null>(null);
   const [message, setMessage] = useState("");
+  const [msgSuccess, setMsgSuccess] = useState(false);
 
   const load = useCallback(async (p = page, order = sortOrder) => {
     const res = await getProjectList({ offset: p, limit: 10, sort_order: order });
@@ -29,6 +30,7 @@ export default function ProjectManagementPage() {
       setTotal(res.parsed.total);
     } else if (res.code === 401) {
       setMessage("Session expired (401)");
+      setMsgSuccess(false);
     }
   }, [page, sortOrder]);
 
@@ -40,6 +42,7 @@ export default function ProjectManagementPage() {
   const submitCreate = async (v: ProjectFormValue) => {
     const res = await createProject(v);
     setMessage(res.message);
+    setMsgSuccess(res.code === 200);
     if (res.code === 200) { setCreating(false); setPage(1); load(1); }
   };
 
@@ -47,6 +50,7 @@ export default function ProjectManagementPage() {
     if (!editing) return;
     const res = await updateProject({ project_id: editing.project_id, ...v });
     setMessage(res.message);
+    setMsgSuccess(res.code === 200);
     if (res.code === 200) { setEditing(null); load(); }
   };
 
@@ -63,7 +67,7 @@ export default function ProjectManagementPage() {
             </PillButton>
           </div>
         </div>
-        {message && <ErrorText>{message}</ErrorText>}
+        {message && <StatusMessage message={message} success={msgSuccess} />}
 
         {/* 表格 */}
         {items.length === 0 ? (
@@ -146,6 +150,7 @@ export default function ProjectManagementPage() {
               if (!deleting) return;
               const res = await deleteProject(deleting.project_id);
               setMessage(res.message);
+              setMsgSuccess(res.code === 200);
               setDeleting(null);
               if (res.code === 200) load();
             }}>Delete</PillButton>

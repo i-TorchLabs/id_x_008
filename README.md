@@ -1,14 +1,16 @@
 <div align="center">
 
-# ID008: SME IAO 预约系统
+# id_x_008: 高校职业咨询预约与通知模块
 
-**咨询主题发布 → 时段排期 → 人员预约 → 邮件提醒 → 取消与反馈 → 数据导出 的全流程预约闭环**
+**单点登录 · 时段预约 · 双向邮件通知 —— 职业咨询预约一站式闭环**
 
-![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=008&color=C3272B&style=for-the-badge&labelColor=555)
+![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=0.1.0&color=C3272B&style=for-the-badge&labelColor=555)
 ![协议](https://img.shields.io/static/v1?label=%E5%8D%8F%E8%AE%AE&message=AGPL-3.0&color=C3272B&style=for-the-badge&labelColor=555)
-![作者](https://img.shields.io/static/v1?label=%E4%BD%9C%E8%80%85&message=IT&color=C3272B&style=for-the-badge&labelColor=555)
-![组织](https://img.shields.io/static/v1?label=%E7%BB%84%E7%BB%87&message=SME&color=C3272B&style=for-the-badge&labelColor=555)
-![引擎](https://img.shields.io/static/v1?label=%E5%BC%95%E6%93%8E&message=Litestar%20%2F%20React&color=C3272B&style=for-the-badge&labelColor=555)
+![作者](https://img.shields.io/static/v1?label=%E4%BD%9C%E8%80%85&message=X_Torch&color=C3272B&style=for-the-badge&labelColor=555)
+![组织](https://img.shields.io/static/v1?label=%E7%BB%84%E7%BB%87&message=i-Core&color=C3272B&style=for-the-badge&labelColor=555)
+![引擎](https://img.shields.io/static/v1?label=%E5%BC%95%E6%93%8E&message=Litestar%2FStrawberry&color=C3272B&style=for-the-badge&labelColor=555)
+![语言](https://img.shields.io/static/v1?label=%E8%AF%AD%E8%A8%80&message=Python&color=C3272B&style=for-the-badge&labelColor=555)
+![数据库](https://img.shields.io/static/v1?label=%E6%95%B0%E6%8D%AE%E5%BA%93&message=PostgreSQL&color=C3272B&style=for-the-badge&labelColor=555)
 
 </div>
 
@@ -16,26 +18,26 @@
 
 ## 1. 简介 (Introduction)
 
-- **Slogan**: 为经管学院「国际事务办公室」提供线上化的一对一咨询预约能力。
-- **Description**: 本系统面向香港中文大学（深圳）经济管理学院「1v1 咨询」预约平台，覆盖**咨询主题发布 → 时段排期 → 人员预约 → 邮件提醒 → 取消与反馈 → 数据汇总导出**的全流程闭环。学生侧将"找校友咨询"从邮件 / 微信沟通升级为自助式在线预约；管理侧将人工登记表升级为结构化数据，支持批量排期与一键导出；顾问侧通过邮件自动触达，无需登录即可掌握预约动态。系统采用前后端分离架构：后端基于 **Litestar** 异步框架，对外仅暴露单一 **GraphQL** 端点；前端基于 **React + Next.js + Tailwind CSS**，提供学生端与管理端两套布局；流量入口由 **HAProxy** 承担负载均衡与反向代理。
+- **Slogan**: 单点登录 · 时段预约 · 双向邮件通知 —— 职业咨询预约一站式闭环。
+- **Description**: id_x_008 是 i-Core 内核的可插拔业务模块，面向高校就业指导中心的职业咨询预约场景。模块通过 Microsoft ADFS（Active Directory Federation Services，活动目录联合服务）OAuth 实现单点登录，学生可在线查看顾问可约时段并完成报名与取消，系统在预约状态变更时自动向学生与顾问双方发送 SMTP 邮件提醒。模块以 Strawberry GraphQL 单端点对外暴露全部业务查询与变更，数据经 SQLAlchemy 异步 ORM 持久化至 PostgreSQL。模块既可作为 i-Core 引擎插件由内核统一托管路由、数据库连接池与安全中间件，也可脱离内核独立运行以供本地开发调试，同一份代码覆盖「生产托管」与「独立调试」两套部署形态。
 
 ## 2. 核心特性 (Features)
 
-- 双端分离：学生端（CUHK ADFS 单点登录，首次登录自动建档）与管理端（账号密码登录）共用同一站点、两套布局。
-- 活动浏览：列表视图 + 日历视图（周/月/日切换），按 Open / Full / Closed 状态着色。
-- 活动报名：结构化话题单选、已占用置灰、同 ISO 自然周唯一性校验、订单号（R+8 位数字）自动生成。
-- 管理后台：咨询项目维护（富文本、名额、顾问）、活动单条创建 / Excel 批量排期上传、报名明细查看。
-- 数据导出：按时间区间 + 活动名多选导出 Excel，底部表格联动实时刷新报名明细。
+- ADFS 单点登录：完整 OAuth 授权码流程，以授权码换取 id_token 并完成 JWKS 验签，解析 UPN（User Principal Name，用户主体名称）声明确定身份。
+- 咨询预约管理：学生可查看顾问可约时段并完成报名与取消，时段与预约记录经异步 ORM 持久化至 PostgreSQL。
+- 双向邮件通知：报名与取消触发双向 SMTP 邮件，分别通知学生（"Your sign-up / cancellation"）与顾问（"Consultation reservation / cancellation reminder"）。
+- GraphQL 单端点：基于 Strawberry GraphQL 的 Litestar 集成，全部业务查询与变更统一收敛至 `/b/id_x_008/graphql`。
+- 数据导入导出：依托 pandas、openpyxl、xlsxwriter 支持预约数据的 Excel 处理与报表导出。
 
 ## 3. 项目亮点 (Highlights)
 
-1. **全流程业务闭环** —— 从主题发布、排期、报名、提醒、取消到反馈问卷与数据导出，一个系统覆盖预约业务全部环节，无需人工干预中间流程。
-2. **单端点 GraphQL 契约** —— 全部业务经 `POST /b/id_x_008/graphql` 统一收发，19 个 Query + 12 个 Mutation 强类型 Schema 描述，前后端以 `ResponseType(code, message, data)` 统一响应封装，接口演进无路径碎片化。
-3. **定时邮件自动化** —— 三个 cron 脚本驱动顾问提醒（活动前一日 21:00）、学生提醒（活动前一日 21:00）、反馈问卷（活动结束满 2 小时，去重防重发），所有邮件统一由 `careersme@cuhk.edu.cn` 发出。
-4. **精细业务规则** —— 同周限约 1 次、开始前 24 小时截止报名、结束前 4 小时禁取消、Open→Full→Closed 状态机自动流转，规则集中可审计。
-5. **批量排期工程化** —— 提供 14 天 Excel 模板下载、填写上传，命中已有记录则更新、否则新增，上传后返回成功 / 失败计数。
-6. **异步高性能后端** —— Litestar + SQLAlchemy 异步会话与连接池（pool_size=32、pool_recycle=360、pool_pre_ping），支撑大文件上传场景。
-7. **负载均衡高可用** —— HAProxy 作为统一入口，承担 SSL 终止、健康检查与多实例后端轮询分发，支持无状态横向扩容。
+1. **双模运行架构** —— 同一份插件代码即可作为 i-Core 引擎插件运行（复用内核限流、Bearer 鉴权、方法白名单等安全中间件），又可经 `python x_plugin.py` 独立起服（默认端口 8101），生产与本地调试零摩擦切换。
+2. **ADFS SSO 降级容错** —— 完整实现 ADFS「授权码 → id_token → JWKS 验签」链路；当 ADFS JWKS 端点不可达时自动降级为 id_token 结构校验，保证内网或离线环境下登录不中断（运行日志可见降级路径与 UPN 声明解析结果）。
+3. **邮件通知与主流程解耦** —— 报名与取消触发学生、顾问双向邮件，SMTP 失败仅记录 error 且不阻断预约主流程，保障核心交易可用性（日志中"does not affect main flow"即此设计）。
+4. **连接池工程化调优** —— 异步数据库引擎采用 `pool_size=32`、`pool_recycle=360`、`pool_pre_ping` 配置，兼顾并发吞吐与长连接稳定性，并对断连做预检重连。
+5. **插件契约零侵入** —— 仅实现 `PluginInterface`（`build_tables` / `set_session_maker` / `required_extensions`）与 `register_routers(prefix)`，经 `x_models._contracts` 运行时校验即可接入内核，无需修改内核任何一行代码。
+6. **依赖安全约束** —— `requirements.txt` 全部依赖采用 `>=x,<y` 兼容性上界，防止意外升级至含 breaking change 或已知漏洞的主版本。
+7. **懒加载模块隔离** —— ORM Base 与控制器均按需导入，独立运行时无需引擎环境即可起服；会话工厂由内核建表后注入，模块不自行管理连接池生命周期。
 
 ## 4. 技术栈 (Tech Stack)
 
@@ -43,314 +45,277 @@
 
 | 分类 | 名称 | 版本 | 用途 |
 |------|------|------|------|
-| 编程语言 | Python / TypeScript | 3.11+ / 5.x | 后端服务 / 前端开发 |
-| 后端框架 | Litestar | 2.x | 异步 Web 框架（GraphQL 单端点） |
-| API 规范 | GraphQL（Strawberry） | 0.200+ | Query / Mutation 强类型契约 |
-| ORM | SQLAlchemy | 2.x | PostgreSQL 异步数据访问与连接池 |
-| 数据处理 | pandas / openpyxl / xlsxwriter | 2.x / 3.x / 3.x | 批量排期解析与报表导出 |
-| 前端框架 | React / Next.js | 19 / 15 | 服务端渲染单页应用与路由 |
-| 样式体系 | Tailwind CSS | 4.x | 原子化样式与主题变量 |
-| 日历组件 | FullCalendar | 6.x | 学生端日历视图 |
-| 富文本 | quill | 2.x | 项目内容编辑 |
-| 构建工具 | Next.js（Turbopack） | — | 前端构建与类型检查 |
-| 数据库 | PostgreSQL | 12+ | 业务数据存储（aa_enlist_* 表族） |
-| 负载均衡 | HAProxy | 2.x | SSL 终止、健康检查、反向代理 |
-| 运维组件 | Supervisor / cron | — | 进程守护、定时邮件 |
+| 编程语言 | Python | ≥ 3.10 | 全栈实现语言 |
+| Web 框架 | Litestar[standard] | ≥ 2.0, < 3.0 | 异步 ASGI 框架与路由体系 |
+| API 规范 | Strawberry GraphQL | ≥ 0.200, < 1.0 | GraphQL 端点（Litestar 集成） |
+| ORM | SQLAlchemy[asyncio] | ≥ 2.0, < 3.0 | 异步 ORM 与模型层 |
+| 数据库驱动 | asyncpg | ≥ 0.29, < 1.0 | PostgreSQL 异步驱动 |
+| 数据库 | PostgreSQL | — | 主存储 |
+| 数据处理 | pandas / openpyxl / xlsxwriter | ≥ 2.0 / ≥ 3.1 / ≥ 3.1 | Excel 导入导出与报表 |
+| ASGI 服务器 | uvicorn | ≥ 0.29, < 1.0 | 独立运行模式服务器 |
+| 加密 | cryptography | ≥ 42.0, < 45.0 | 配置与密钥加密 |
 
 ## 5. 整体架构图 (Overall Architecture Diagram)
 
 ```mermaid
 graph TD
-    subgraph 客户端
-        STU[学生端 Next.js SPA<br/>SSO 登录 / 浏览 / 报名 / 取消]
-        ADM[管理端 Next.js SPA<br/>账号密码登录 / 排期 / 导出]
+    subgraph 客户端层
+        STU[学生 Browser]
+        ADV[顾问 Browser]
     end
 
-    subgraph 负载均衡层
-        HAP[HAProxy<br/>sme-activity-apply.cuhk.edu.cn<br/>SSL 终止 / 健康检查 / 轮询分发]
+    subgraph 网关层
+        HP[HAProxy TLS 终止]
+        GW[Granian / Uvicorn ASGI]
     end
 
-    subgraph 应用层
-        API[Litestar 后端<br/>GraphQL 端点 /b/id_x_008/graphql]
-        CTRL[x_controllers.py 操作分发]
-        VIEW[x_views.py 业务处理]
-        MODEL[x_models.py ORM 映射]
+    subgraph 内核层 i-Core
+        MW[RequestMiddleware 限流/鉴权/方法白名单]
+        ADAPT[插件装载器 adapt.py]
+    end
+
+    subgraph 模块层 id_x_008
+        ROUTER[register_routers 路由注册]
+        AUTH[OAuth/ADFS 控制器 登录回调/id_token 验签降级]
+        GQL[GraphQL 端点 Strawberry]
+        SVC[预约业务服务 报名/取消/时段]
+        MAIL[邮件服务 SMTP]
+        ORM[ORM 模型 SQLAlchemy Async]
     end
 
     subgraph 数据层
-        PG[(PostgreSQL<br/>aa_enlist_user / content / project /<br/>activity / apply / html_template / owner_info)]
+        PG[(PostgreSQL)]
     end
 
     subgraph 外部依赖
-        SSO[CUHK ADFS 统一身份认证]
-        SMTP[邮件服务 careersme@cuhk.edu.cn]
-        CRON[cron 定时脚本<br/>提醒 / 问卷]
+        ADFS[Microsoft ADFS OAuth IdP + JWKS]
+        SMTP[SMTP 邮件服务器]
     end
 
-    STU -->|HTTPS| HAP
-    ADM -->|HTTPS| HAP
-    HAP -->|负载均衡 /b/id_x_008/graphql| API
-    STU -.->|单点登录跳转| SSO
-    API --> CTRL --> VIEW --> MODEL
-    MODEL -->|SQLAlchemy 异步连接池| PG
-    CRON -->|读取排期与报名| PG
-    CRON -->|SMTP 发信| SMTP
-    VIEW -->|报名 / 取消通知| SMTP
+    STU -->|HTTPS| HP
+    ADV -->|HTTPS| HP
+    HP -->|HTTP :7000| GW
+    GW --> MW
+    MW --> ADAPT
+    ADAPT -->|挂载 /b/id_x_008| ROUTER
+    ROUTER --> AUTH
+    ROUTER --> GQL
+    AUTH -->|授权码 / JWKS| ADFS
+    GQL --> SVC
+    SVC --> ORM
+    SVC --> MAIL
+    ORM -->|asyncpg| PG
+    MAIL -->|SMTP| SMTP
 ```
+
+<p align="center">图 5-1 id_x_008 整体架构图</p>
 
 ## 6. 请求流转图 (Request Flow Diagram)
 
 ```mermaid
 sequenceDiagram
-    participant U as 用户浏览器
-    participant H as HAProxy
-    participant L as Litestar
-    participant G as GraphQL Schema
-    participant C as x_controllers.py
-    participant V as x_views.py
-    participant D as PostgreSQL
-    participant M as 邮件服务
+    participant CL as Client
+    participant GW as Granian/Uvicorn
+    participant MW as RequestMiddleware
+    participant RT as id_x_008 Router
+    participant SVC as 预约/鉴权服务
+    participant DB as PostgreSQL
+    participant ADFS as ADFS
+    participant SMTP as SMTP
 
-    U->>H: HTTPS POST /b/id_x_008/graphql
-    H->>L: 健康检查通过后轮询转发
-    L->>G: 解析 Query / Mutation 操作
-    G->>G: 输入校验（Strawberry Input）
-    alt 未登录访问管理操作
-        G-->>U: ResponseType(code=401)
-    else 校验通过
-        G->>C: 分发至对应 controller
-        C->>V: 调用业务视图函数
-        V->>D: SQLAlchemy 异步查询 / 写入
-        D-->>V: 返回结果集
-        alt 报名 / 取消成功
-            V->>M: 发送通知邮件（学生 + 顾问）
-            Note over V,M: 邮件失败仅记录日志，不影响主流程
-        end
-        alt 业务规则校验失败
-            V-->>U: 403 同周重复 / 404 记录不存在 / 400 格式错误
-        else 正常返回
-            V-->>U: ResponseType(code=200, data=JSON 字符串)
-        end
+    CL->>GW: GET /b/id_x_008/login OAuth 授权码
+    GW->>MW: ASGI scope
+    alt 非免鉴权白名单且无 Bearer
+        MW-->>CL: 401 Unauthorized
     end
+    MW->>RT: 路由分发
+    RT->>SVC: OAuth 登录 has_code=True
+    SVC->>ADFS: 授权码换取 id_token
+    ADFS-->>SVC: id_token
+    SVC->>SVC: JWKS 验签
+    alt JWKS 不可达
+        SVC->>SVC: 降级为 id_token 结构校验
+    end
+    SVC-->>CL: 登录态/会话凭证
+
+    CL->>GW: POST /b/id_x_008/graphql applyConsultation
+    GW->>MW: Bearer 鉴权
+    alt 超出限流
+        MW-->>CL: 429 Too Many Requests
+    end
+    MW->>RT: GraphQL Resolver
+    RT->>SVC: 报名业务处理
+    SVC->>DB: 写入预约记录
+    DB-->>SVC: OK
+    SVC->>SMTP: 发送报名通知邮件 学生+顾问
+    alt SMTP 失败
+        Note over SVC,SMTP: 记录 error 但不阻断主流程
+    end
+    SVC-->>CL: ResponseType code/message/data
 ```
+
+<p align="center">图 6-1 请求流转图</p>
 
 ## 7. 目录结构 (Directory Structure)
 
 ```text
-id_x_008/                               # 模型根目录
-├── src/
-│   ├── controllers/
-│   │   └── x_controllers.py            # GraphQL Query / Mutation 操作入口（19+12 个操作）
-│   ├── models/
-│   │   └── x_models.py                 # SQLAlchemy ORM 模型（7 张表）
-│   ├── schemas/
-│   │   └── x_schemas.py                # Strawberry Input / ResponseType / FileResponseType
-│   └── views/
-│       └── x_views.py                  # 业务逻辑与规则校验（报名 / 取消 / 排期 / 导出）
-├── scripts/
-│   ├── send_reminder_mail_advisor.py   # 顾问提醒（每日 21:00）
-│   ├── send_reminder_mail_student.py   # 学生提醒（每日 21:00）
-│   └── send_question_mail.py           # 反馈问卷（每 2 小时，去重防重发）
-├── utils/
-│   ├── database_client.py              # 数据库配置加载（加密凭据解密，连接池）
-│   ├── encrypt_util.py                 # XOR + base64 加密工具
-│   ├── decrypt_util.py                 # XOR + base64 解密工具
-│   └── log_util.py                     # 日志工具（request_id 上下文追踪）
-├── ops/
-│   └── haproxy.cfg                     # HAProxy 负载均衡配置（SSL 终止 / 健康检查 / 轮询）
-├── web/                                # 前端应用（Next.js + React + Tailwind CSS）
-│   ├── src/
-│   │   ├── api/                        # GraphQL 客户端封装（admin.ts / user.ts / graphql.ts）
-│   │   ├── app/                        # App Router 页面
-│   │   │   ├── login/                  #   登录页（管理员密码 + 学生 SSO 入口）
-│   │   │   ├── admin/                  #   管理端：项目管理 / 活动管理 / 报表导出
-│   │   │   └── user/                   #   学生端：首页 / 活动详情 / 我的记录 / SSO 回调
-│   │   ├── components/                 # 组件：布局 / 日历 / 富文本 / 活动表单 / 项目表单
-│   │   └── stores/                     # 用户状态管理（UserProvider + useUser）
-│   ├── next.config.ts                  # Next.js 构建配置（代理 /b/* 至后端）
-│   └── package.json                    # 前端依赖清单
-├── __init__.py                         # 包标识
-├── x_plugin.py                         # 插件入口：注册路由 /b/id_x_008/graphql + /health
-├── requirements.txt                    # Python 依赖清单
-├── LICENSE                             # AGPL-3.0 许可证
-├── README_EX.md                        # 扩展业务规格说明
-└── README.md                           # 项目说明文档
+id_x_008/
+├── x_plugin.py              # 插件入口：load_plugin() 返回 PluginInterface 实例；create_app() 构建独立 Litestar 应用
+├── __init__.py              # 包标识
+├── requirements.txt         # 模块独立依赖清单（>=x,<y 兼容性上界）
+├── LICENSE                  # AGPL-3.0 许可证
+├── src/                     # 源代码目录
+│   ├── models/              # SQLAlchemy ORM 模型层
+│   │   └── x_models.py      # Base 元数据、set_session_maker() 会话工厂注入
+│   └── controllers/         # 路由与 GraphQL 控制器
+│       └── x_controllers.py # register_routers(prefix) 注册 OAuth 路由与 GraphQL 端点
+├── utils/                   # 模块级工具
+│   └── database_client.py   # get_engine() / get_session_maker() 异步数据库客户端
+├── web/                     # 前端资源目录（预留）
+├── docs/                    # 模块文档目录
+├── ops/                     # 运维资产目录
+├── scripts/                 # 辅助脚本目录
+└── logs/                    # 运行日志输出目录（id_x_008.log）
 ```
 
 ## 8. API 接口文档 (API Documentation)
 
-- 统一端点：`POST https://<HOST>/b/id_x_008/graphql`
-- 所有操作均为 GraphQL Query / Mutation；请求体 `{"query": "...", "variables": {"input": {...}}}`。
-- 响应统一封装为 `ResponseType { code, message, data }`，`data` 为 JSON 字符串，需客户端二次解析；文件类操作返回 `FileResponseType { code, message, file_name, file_base64 }`。
-- 管理操作需登录会话，未登录返回 `code=401`。
-- Schema 配置：`auto_camel_case=False`（字段名保持 snake_case），`QueryDepthLimiter(max_depth=8)`。
-- 错误码约定：`200` 成功；`400` 输入/格式错误；`401` 未认证；`403` 业务规则违反；`404` 记录不存在；`500` 服务器错误。
+模块对外端点统一挂载于 `/b/id_x_008` 前缀之下。其中 `health` 与 `graphql` 端点由 `x_plugin.py` 显式注册；OAuth 登录与回调路由由 `src/controllers` 注册，具体路径以控制器实现为准。经 i-Core 引擎加载时，全部请求先经内核 `RequestMiddleware`（限流、Bearer 鉴权、GET/POST/OPTIONS 方法白名单）。
 
-<p align="center">表 8-1 GraphQL 操作汇总</p>
+<p align="center">表 8-1 端点汇总</p>
 
-| 类型 | 操作名 | 说明 |
-|------|--------|------|
-| Query | health | 健康检查 |
-| Mutation | login | 管理员账号密码登录 |
-| Mutation | logout | 登出 |
-| Mutation | user_oauth | SSO 登录回调建档（首次自动注册） |
-| Query | get_user_activity_list | 学生端活动分页列表 |
-| Query | search_user_activity | 活动筛选查询（按状态/时间/名称） |
-| Query | get_user_activity_detail | 活动详情（含话题占用状态） |
-| Query | fuzzy_activity_name | 活动名前缀模糊搜索 |
-| Mutation | apply_activity | 提交报名（同周唯一校验，403 重复；开始前 24 小时截止，403） |
-| Mutation | cancel_apply | 取消报名（结束前 4 小时禁取消，403；记录不存在，404） |
-| Query | get_project_list | 项目分页列表 |
-| Query | search_project | 项目名模糊查询 |
-| Query | search_project_owner | 顾问下拉查询 |
-| Query | get_project_name_list | 项目名清单 |
-| Mutation | create_project | 新增项目（name 唯一，403 重复） |
-| Mutation | update_project | 编辑项目 |
-| Mutation | delete_project | 删除项目（级联删除活动与报名） |
-| Query | get_activity_list | 活动分页列表 |
-| Query | get_activity_detail | 单活动报名明细 |
-| Query | search_activity | 活动查询（无名称时回退分页列表） |
-| Query | get_activity_name_list | 活动名清单（分页去重） |
-| Mutation | create_activity | 新增活动（名称缺省取项目名） |
-| Mutation | update_activity | 编辑活动（部分更新时间字段） |
-| Mutation | upload_activity | Excel 批量排期上传（.xlsx，400 格式错误） |
-| Mutation | delete_activity | 删除活动（级联删除报名） |
-| Query | download_activity_template | 排期模板下载（14 天 xlsx） |
-| Query | export_activity | 报名数据 Excel 导出 |
-| Query | fuzzy_export_activity_name | 导出活动名前缀模糊搜索 |
-| Query | search_query_title | 跨活动标题查询（全部去重活动名） |
-| Query | search_query_data | 跨活动报名数据查询（学生仅见本人） |
-| Query | download_query_data | 跨活动报名数据下载（xlsx） |
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | /b/id_x_008/health | 免鉴权 | 健康检查，返回 {"status":"ok","service":"id_x_008"} |
+| GET | /b/id_x_008/login | 免鉴权 | OAuth/ADFS 登录入口，重定向至 ADFS 授权页 |
+| GET | /b/id_x_008/callback | 免鉴权 | OAuth 回调，以授权码换取 id_token 并建立会话 |
+| POST | /b/id_x_008/graphql | Bearer | GraphQL 单端点，承载全部业务查询与变更 |
 
-调用示例（需替换 `<BASE_URL>` 与会话 Cookie）：
+<p align="center">表 8-2 GraphQL 操作一览</p>
+
+| 类型 | 操作 | 说明 |
+|------|------|------|
+| Query | availableSlots | 查询顾问可预约时段 |
+| Query | myReservations | 查询当前学生的预约记录 |
+| Query | advisors | 查询顾问列表 |
+| Mutation | oauthLogin | 以 ADFS 授权码换取会话凭证 |
+| Mutation | applyConsultation | 报名一场咨询 |
+| Mutation | cancelConsultation | 取消已有预约 |
+
+注：上表操作名为按业务能力归纳的示意命名，权威 Schema 定义由 Strawberry 在 `/b/id_x_008/graphql` 端点生成，可通过内省（introspection）获取完整字段定义。响应统一封装为 `ResponseType(code, message, data)`；内核级异常码为 401（未鉴权）、405（方法不允许）、429（触发限流），业务级异常码以模块返回为准。
+
+健康检查：
 
 ```bash
-# 管理员登录
-curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "mutation Login($input: LoginInput!) { login(input: $input) { code message data } }",
-    "variables": {"input": {"username": "<USERNAME>", "password": "<PASSWORD>"}}
-  }'
+curl "<BASE_URL>/b/id_x_008/health"
+# {"status":"ok","service":"id_x_008"}
+```
 
-# 学生提交报名
-curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
-  -H "Content-Type: application/json" \
-  -H "Cookie: <SESSION_COOKIE>" \
-  -d '{
-    "query": "mutation Apply($input: ApplyInput!) { apply_activity(input: $input) { code message data } }",
-    "variables": {"input": {"user_id": 1, "activity_id": "1", "info_1": "<咨询话题>"}}
-  }'
+Schema 内省：
 
-# 导出报名数据（返回 base64 编码 xlsx）
+```bash
 curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
   -H "Content-Type: application/json" \
-  -H "Cookie: <SESSION_COOKIE>" \
-  -d '{
-    "query": "query Export($input: ExportActivityInput!) { export_activity(input: $input) { code message file_name file_base64 } }",
-    "variables": {"input": {"activity_list": ["<活动名>"], "start_time": 1700000000000, "end_time": 1700999999999}}
-  }'
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"query":"query { __schema { queryType { name } mutationType { name } } }"}'
+```
 
-# Excel 批量排期上传
+报名咨询（applyConsultation）：
+
+```bash
 curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
   -H "Content-Type: application/json" \
-  -H "Cookie: <SESSION_COOKIE>" \
-  -d '{
-    "query": "mutation Upload($input: UploadActivityInput!) { upload_activity(input: $input) { code message data } }",
-    "variables": {"input": {"file_name": "schedule.xlsx", "file_base64": "<BASE64_STRING>"}}
-  }'
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"query":"mutation { applyConsultation(input: { slotId: \"<SLOT_ID>\" }) { code message data { reservationId status } } }"}'
+```
+
+取消预约（cancelConsultation）：
+
+```bash
+curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -d '{"query":"mutation { cancelConsultation(input: { reservationId: \"<RESERVATION_ID>\" }) { code message } }"}'
 ```
 
 ## 9. 快速部署 (Quick Deploy)
 
-### 环境准备 (Prerequisites)
+### 9.1 环境准备 (Prerequisites)
 
-- Python 3.11+（建议 conda 虚拟环境）
-- Node.js 20+ 与 npm
-- PostgreSQL 12+
-- HAProxy、Supervisor、cron（生产环境）
+- Python ≥ 3.10
+- PostgreSQL（建议 ≥ 14）
+- Microsoft ADFS OAuth 凭据（client_id / client_secret / redirect_uri / 授权与令牌端点 / JWKS URI）
+- 可达的 SMTP 邮件服务（发件账号与凭证）
+- uv（推荐）或 pip
 
-### 安装 (Installation)
+### 9.2 安装 (Installation)
 
-```bash
-# 后端依赖
-cd id_x_008
-pip install -r requirements.txt
-
-# 前端依赖
-cd web
-npm install
-```
-
-### 管理员账号配置 (Admin Account Setup)
-
-数据库初始化脚本 `ops/init/01_seed_admin.sql` 预置了管理员账号 **`admin@example.com`**，但密码字段为**占位哈希（无法登录）**，部署前必须替换为真实密码哈希。
-
-**Step 1 — 生成密码哈希**
+作为 i-Core 子模块随内核安装：
 
 ```bash
-cd /home/i/Desktop/codeSpace/i-Core
-# 使用 heredoc 方式避免密码中的特殊字符（如 !）被 bash 解析
-python << 'EOF'
-from x_models.id_x_008.src.views import x_views
-print(x_views._hash_password('你的密码'))
-EOF
+git clone <REPO_URL> i-Core
+cd i-Core
+uv sync
 ```
 
-输出格式：`$pbkdf2_sha256$600000$<base64_salt>$<base64_hash>`
-
-**Step 2 — 替换占位哈希**
-
-编辑 `ops/init/01_seed_admin.sql`，将第 29 行的 password 字段值：
-
-```sql
-'$pbkdf2_sha256$600000$REPLACE_THIS_SALT_BEFORE_DEPLOYMENT$REPLACE_THIS_HASH_BEFORE_DEPLOYMENT'
-```
-
-替换为 Step 1 生成的哈希值，然后重新部署。
-
-**Step 3 — 登录后台修改密码（推荐）**
-
-部署完成后以 `admin@example.com` + 自定义密码登录管理后台，立即在后台修改为最终密码。
-
-### 运行 (Run)
+或仅安装本模块依赖（独立运行）：
 
 ```bash
-# 后端（GraphQL 端点 /b/id_x_008/graphql，默认端口 8101，可用 AA_PORT 覆盖；
-# 数据库凭据经环境变量 DB_HOST / DB_PORT / DB_NAME / DB_USERNAME / DB_PASSWORD 注入）
-python x_plugin.py
-
-# 前端开发（端口 2008，代理 /b/* 至后端）
-cd web
-npm run dev
-
-# 前端生产构建
-npm run build
-npm run start
+cd x_models/id_x_008
+pip install -r requirements.txt   # 或 uv pip install -r requirements.txt
 ```
 
-### 生产部署 (可选)
+### 9.3 运行 (Run)
 
-- **Supervisor**：配置进程守护托管后端进程（含 `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USERNAME` / `DB_PASSWORD` 加密环境变量；若 `AA_DB_ENCRYPTED=true` 则凭据经 `decrypt_util` 解密）。
-- **HAProxy**：使用 `ops/haproxy.cfg`，前端产物由 Next.js 服务承载，域名 `sme-activity-apply.cuhk.edu.cn` 统一入口，SSL 终止于 HAProxy；`/b/id_x_008/graphql` 经健康检查（`option httpchk GET /b/id_x_008/health`）后轮询分发至多个后端实例，示例：
+引擎插件模式（生产，复用内核安全中间件与连接池托管）：
 
 ```text
-frontend sme_aa
-    bind *:443 ssl crt /etc/haproxy/certs/cuhk-edu-cn.pem
-    default_backend litestar_nodes
-
-backend litestar_nodes
-    balance roundrobin
-    option httpchk GET /b/id_x_008/health
-    http-check expect status 200
-    server node1 127.0.0.1:8101 check
-    server node2 127.0.0.1:8102 check
+# config/base_config.toml
+[EXTEND]
+MODELS = [
+    ["id_x_008", "/id_x_008"],
+]
 ```
 
-- **cron**：配置三个邮件脚本定时任务（邮件发信地址 `careersme@cuhk.edu.cn`，SMTP `mail.cuhk.edu.cn:587` STARTTLS）：
-
-```text
-0 21 * * *  python scripts/send_reminder_mail_advisor.py
-0 21 * * *  python scripts/send_reminder_mail_student.py
-0 */2 * * * python scripts/send_question_mail.py
+```bash
+uv run python main.py
 ```
+
+独立运行模式（本地调试，默认端口 8101）：
+
+```bash
+IAO_PORT=8101 python x_models/id_x_008/x_plugin.py
+```
+
+独立模式启动时会以 `RuntimeWarning` 提示未启用安全加固（CORS、限流等），生产环境请通过 i-Core 引擎加载。
+
+<p align="center">表 9-1 配置项清单</p>
+
+| 配置组 | 说明 | 必填 |
+|------|------|------|
+| 数据库连接 | PostgreSQL host / port / db / user / password，经 i-Core 分层 .env 提供 | 是 |
+| ADFS OAuth | client_id / client_secret / redirect_uri / 授权端点 / 令牌端点 / JWKS URI | 是 |
+| SMTP 邮件 | host / port / 账号 / 凭证 / 发件人地址 | 是 |
+| 运行端口 | IAO_PORT（独立模式，默认 8101） | 否 |
+
+### 9.4 容器部署 (可选)
+
+独立模式的容器化示例（适配 Podman / Docker）：
+
+```dockerfile
+FROM docker.io/python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+ENV IAO_PORT=8101
+EXPOSE 8101
+CMD ["python", "x_plugin.py"]
+```
+
+```bash
+podman build -t id_x_008:latest x_models/id_x_008
+podman run --rm -p 8101:8101 --env-file .env id_x_008:latest
+```
+
+生产部署建议将本模块交由 i-Core 引擎进程统一加载（Granian 多 worker 托管），并于前置 HAProxy 完成 TLS 终止与反向代理，而非直接暴露独立模式容器。

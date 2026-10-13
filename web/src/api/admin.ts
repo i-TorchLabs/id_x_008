@@ -74,13 +74,44 @@ export async function login(username: string, password: string) {
     console.warn("RSA encryption unavailable, falling back to plaintext", e);
   }
 
-  return gql<{ user_id: number; token: string; role: string }>(`mutation ($input: LoginInput!) {
+  return gql<{ user_id: number; username: string; token: string; role: string }>(`mutation ($input: LoginInput!) {
     login(input: $input) { code message data }
   }`, {
     input: {
       username,
       password: encryptedPassword ? "" : password,
       encrypted_password: encryptedPassword,
+    },
+  });
+}
+
+/** 普通用户注册：用户名为邮箱，密码至少 8 位；注册成功即自动登录（role=user）。 */
+export async function register(input: {
+  email: string;
+  password: string;
+  name?: string;
+  grade?: string;
+  number?: string;
+}) {
+  let encryptedPassword = "";
+  try {
+    const publicKey = await getPublicKey();
+    encryptedPassword = await encryptPassword(publicKey, input.password);
+  } catch (e) {
+    // 加密失败时降级为明文传输（向后兼容）
+    console.warn("RSA encryption unavailable, falling back to plaintext", e);
+  }
+
+  return gql<{ user_id: number; username: string; token: string; role: string }>(`mutation ($input: RegisterInput!) {
+    register(input: $input) { code message data }
+  }`, {
+    input: {
+      email: input.email,
+      password: encryptedPassword ? "" : input.password,
+      encrypted_password: encryptedPassword,
+      name: input.name ?? "",
+      grade: input.grade ?? "",
+      number: input.number ?? "",
     },
   });
 }

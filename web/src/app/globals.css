@@ -198,17 +198,201 @@ code {
     40% { opacity: 1; transform: scale(1); }
 }
 
-/* ── 富文本内容渲染约束（学生端 dangerouslySetInnerHTML 产物） ── */
+/* ══════════════ 富文本内容完整渲染（学生端 dangerouslySetInnerHTML 产物） ══════════════
+ * Quill 编辑器产物可含：标题 / 段落 / 无序或有序列表 / 引用 / 表格 / 代码块 /
+ * 链接 / 加粗 / 斜体 / 删除线 / 水平分隔线 / 图片 / 对齐与颜色字号等内联样式。
+ *
+ * 全局基础 reset 已清空 margin/padding（使 <ul>/<ol> 的 markers、<blockquote> 缩进、
+ * <table> 单元格留白等默认样式丢失），这里在 .prose 作用域内逐项恢复并增强，
+ * 让数据库中的富文本能按编辑意图完整呈现；同时收敛所有内容宽度，避免右侧溢出被截断。 */
+
+/* 容器收窄 + 长内容换行兜底 */
+.prose {
+    max-width: 100%;
+    overflow: hidden;
+    /* 自然断行：仅当单词 / URL 过长放不下时才强制换行，
+       不在 "-" 等标点处过早断行。 */
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: none;
+}
+.prose > *:first-child {
+    margin-top: 0;
+}
+.prose > *:last-child {
+    margin-bottom: 0;
+}
+
+/* 段落与列表项行高 */
+.prose p {
+    margin: 0.5em 0;
+    line-height: 1.7;
+}
+.prose li {
+    line-height: 1.7;
+}
+
+/* 标题：恢复合理字号与间距 */
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+    margin: 0.9em 0 0.35em;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-primary, #1f2225);
+}
+.prose h1 { font-size: 1.8em; }
+.prose h2 { font-size: 1.5em; }
+.prose h3 { font-size: 1.25em; }
+.prose h4 { font-size: 1.1em; }
+.prose h5 { font-size: 1em; }
+.prose h6 { font-size: 0.9em; }
+
+/* 列表：恢复 markers 与缩进（reset 抹掉了默认列表样式） */
+.prose ul,
+.prose ol {
+    display: block;
+    max-width: 100%;
+    margin: 0.5em 0;
+    padding-left: 1.6em;
+}
+.prose ul { list-style: disc; }
+.prose ul li { list-style: disc; }
+.prose ol { list-style: decimal; }
+.prose ol li { list-style: decimal; }
+.prose ul ul { list-style: circle; }
+.prose ol ul,
+.prose ul ol { list-style: lower-roman; }
+.prose li {
+    margin: 0.2em 0;
+    padding-left: 0.2em;
+}
+.prose li > ul,
+.prose li > ol {
+    margin: 0.2em 0;
+}
+
+/* 引用块 */
+.prose blockquote {
+    max-width: 100%;
+    margin: 0.8em 0;
+    padding: 0.4em 1em;
+    border-left: 3px solid var(--color-primary, #763890);
+    background: rgba(118, 56, 144, 0.06);
+    color: rgba(0, 0, 0, 0.7);
+    border-radius: 0 3px 3px 0;
+}
+.prose blockquote p {
+    margin: 0.3em 0;
+}
+
+/* 内联格式 */
+.prose strong,
+.prose b {
+    font-weight: 700;
+}
+.prose em,
+.prose i {
+    font-style: italic;
+}
+.prose u {
+    text-decoration: underline;
+}
+.prose s {
+    text-decoration: line-through;
+}
+
+/* 链接 */
+.prose a {
+    color: var(--color-primary, #763890);
+    text-decoration: underline;
+    overflow-wrap: break-word; /* 长链接按需换行，避免逐字符断开 */
+}
+.prose a:hover {
+    color: var(--color-primary-deep, #5e2c73);
+}
+
+/* 代码与代码块 */
+.prose code {
+    font-family: "SF Mono", "Menlo", ui-monospace, monospace;
+    font-size: 0.9em;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 3px;
+    padding: 0.1em 0.35em;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+.prose pre {
+    max-width: 100%;
+    margin: 0.8em 0;
+    padding: 0.75em 1em;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 3px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+.prose pre code {
+    background: transparent;
+    padding: 0;
+}
+
+/* 水平分隔线 */
+.prose hr {
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    margin: 1em 0;
+}
+
+/* 图片与媒体 */
 .prose img {
     max-width: 100%;
     height: auto;
     border-radius: 4px;
 }
-.prose h1,
-.prose h2,
-.prose h3 {
-    margin: 0.6em 0 0.3em;
-    line-height: 1.3;
+.prose video,
+.prose iframe,
+.prose svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* 表格：带描边与单元格留白；宽表内部横向滚动，不溢出卡片右侧 */
+.prose table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 0.8em 0;
+    border-collapse: collapse;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+.prose thead {
+    background: rgba(0, 0, 0, 0.04);
+}
+.prose th,
+.prose td {
+    padding: 0.5em 0.8em;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    text-align: left;
+    vertical-align: top;
+}
+.prose th {
+    font-weight: 600;
+}
+
+/* Quill 对齐辅助类（兼容 class-based 产物） */
+.prose .ql-align-center { text-align: center; }
+.prose .ql-align-right { text-align: right; }
+.prose .ql-align-justify { text-align: justify; }
+
+/* 兜底：任意孙元素不超出容器 */
+.prose * {
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* ── 弹层淡入 ── */

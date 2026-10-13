@@ -39,6 +39,17 @@ class LoginInput:
 
 
 @strawberry.input
+class RegisterInput:
+    """普通用户注册入参（用户名为邮箱，密码至少 8 位）。"""
+    email: str = strawberry.field(description="邮箱（作为用户名）")
+    password: str = strawberry.field(description="密码（至少 8 位）")
+    encrypted_password: str = strawberry.field(default="", description="RSA-OAEP 加密密码（Base64，优先使用）")
+    name: str = strawberry.field(default="", description="姓名（可选）")
+    grade: str = strawberry.field(default="", description="年级（可选）")
+    number: str = strawberry.field(default="", description="学号（可选）")
+
+
+@strawberry.input
 class OauthInput:
     """学生 SSO 登录入参：ADFS 授权码授予流。
 
@@ -101,7 +112,7 @@ class PageInput:
     end_date: Optional[str] = strawberry.field(default=None, description="结束时间（毫秒时间戳）")
     offset: int = strawberry.field(default=1, description="页码")
     limit: int = strawberry.field(default=10, description="每页数量")
-    sort_order: str = strawberry.field(default="asc", description="ID 排序：asc 升序 / desc 降序")
+    sort_order: str = strawberry.field(default="asc", description="活动时间排序：asc 升序 / desc 降序")
 
 
 @strawberry.input

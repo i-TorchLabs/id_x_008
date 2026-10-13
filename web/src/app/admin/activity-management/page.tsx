@@ -9,13 +9,14 @@ import {
 import { downloadBase64 } from "@/api/graphql";
 import ActivityForm, { type ActivityFormValue } from "@/components/ActivityForm";
 import {
-  Badge, Card, EmptyState, ErrorText, Modal, PageTitle, PillButton, SortOrderButton, type SortOrder,
+  Badge, Card, EmptyState, Modal, PageTitle, PillButton, SortOrderButton, StatusMessage, type SortOrder,
   tableStyle, tdMonoStyle, tdPrimaryStyle, tdStyle, thStyle,
 } from "@/components/ui";
 import { SF_TEXT, tokens } from "@/utils/tokens";
 
 interface ActivityRow {
   activity_id: number;
+  display_id: number;
   activity_name: string;
   project_id: number;
   project_name: string;
@@ -55,6 +56,7 @@ export default function ActivityManagementPage() {
   const [detail, setDetail] = useState<{ name: string; list: Record<string, unknown>[] } | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
+  const [msgSuccess, setMsgSuccess] = useState(false);
 
   const load = useCallback(async (p = page, order = sortOrder) => {
     const res = await getActivityList({ offset: p, limit: 10, sort_order: order });
@@ -63,6 +65,7 @@ export default function ActivityManagementPage() {
       setTotal(res.parsed.total);
     } else if (res.code === 401) {
       setMessage("Session expired (401)");
+      setMsgSuccess(false);
     }
   }, [page, sortOrder]);
 
@@ -81,6 +84,7 @@ export default function ActivityManagementPage() {
       apply_end_time: toMs(v.apply_end_time),
     });
     setMessage(res.message);
+    setMsgSuccess(res.code === 200);
     if (res.code === 200) { setCreating(false); setPage(1); load(1); }
   };
 
@@ -96,6 +100,7 @@ export default function ActivityManagementPage() {
       apply_end_time: toMs(v.apply_end_time),
     });
     setMessage(res.message);
+    setMsgSuccess(res.code === 200);
     if (res.code === 200) { setEditing(null); load(); }
   };
 
@@ -111,17 +116,19 @@ export default function ActivityManagementPage() {
     const res = await uploadActivity(file.name, base64);
     if (res.code === 200 && res.parsed) {
       setMessage(`Upload done: ${res.parsed.success_count} succeeded, ${res.parsed.fail_count} failed`);
+      setMsgSuccess(res.parsed.fail_count === 0);
       setPage(1);
       load(1);
     } else {
       setMessage(res.message);
+      setMsgSuccess(false);
     }
   };
 
   const onDownloadTemplate = async () => {
     const res = await downloadActivityTemplate();
     if (res.code === 200) downloadBase64(res.file_name, res.file_base64);
-    else setMessage(res.message);
+    else { setMessage(res.message); setMsgSuccess(false); }
   };
 
   const showDetail = async (id: number) => {
@@ -130,12 +137,13 @@ export default function ActivityManagementPage() {
       setDetail({ name: res.parsed.activity_name, list: res.parsed.list });
     } else {
       setMessage(res.message);
+      setMsgSuccess(false);
     }
   };
 
   /** 复制学生端报名链接（相对路径，部署于任何域名均可直接使用）。 */
   const copyLink = async (id: number) => {
-    const url = `${window.location.origin}/user/activity?id=${id}`;
+    const url = `${window.location.origin}/f/008/user/activity?id=${id}`;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
@@ -187,7 +195,7 @@ export default function ActivityManagementPage() {
             </label>
           </div>
         </div>
-        {message && <ErrorText>{message}</ErrorText>}
+        {message && <StatusMessage message={message} success={msgSuccess} />}
 
         {/* 表格 */}
         {items.length === 0 ? (
@@ -198,7 +206,7 @@ export default function ActivityManagementPage() {
               <thead>
                 <tr>
                   <th style={{ ...thStyle, cursor: "pointer", userSelect: "none" }}
-                    title="Sort by ID"
+                    title="Sort by activity time"
                     onClick={() => { const o = sortOrder === "asc" ? "desc" : "asc"; setSortOrder(o); setPage(1); load(1, o); }}>
                     ID {sortOrder === "asc" ? "↑" : "↓"}
                   </th>
@@ -210,7 +218,7 @@ export default function ActivityManagementPage() {
               <tbody>
                 {items.map((a) => (
                   <tr key={a.activity_id} data-row>
-                    <td style={tdMonoStyle}>{a.activity_id}</td>
+                    <td style={tdMonoStyle}>{a.display_id}</td>
                     <td style={tdPrimaryStyle}>{a.activity_name}</td>
                     <td style={tdStyle}>{a.project_name}</td>
                     <td style={tdMonoStyle}>{a.activity_start_time?.slice(0, 16).replace("T", " ")}</td>
@@ -218,7 +226,7 @@ export default function ActivityManagementPage() {
                     <td style={tdStyle}>{stateBadge(a.state)}</td>
                     <td style={tdStyle}>
                       <div className="flex gap-2">
-                        <PillButton small onClick={() => window.open(`/user/activity?id=${a.activity_id}`, "_blank")}>
+                        <PillButton small onClick={() => window.open(`/f/008/user/activity?id=${a.activity_id}`, "_blank")}>
                           Address
                         </PillButton>
                         <PillButton small onClick={() => copyLink(a.activity_id)}>
@@ -291,6 +299,7 @@ export default function ActivityManagementPage() {
               if (!deleting) return;
               const res = await deleteActivity(deleting.activity_id);
               setMessage(res.message);
+              setMsgSuccess(res.code === 200);
               setDeleting(null);
               if (res.code === 200) load();
             }}>Delete</PillButton>

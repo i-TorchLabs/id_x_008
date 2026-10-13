@@ -20,8 +20,8 @@ def _require_key() -> None:
     """延迟校验密钥：仅在加解密函数实际调用时检查，避免模块导入时就炸。"""
     if not _SECRET_KEY:
         raise RuntimeError(
-            "IAO_SECRET_KEY 环境变量未设置。"
-            "请设置环境变量 IAO_SECRET_KEY=<your-key> 后再启动服务。（安全策略）"
+            "The IAO_SECRET_KEY environment variable is not set. "
+            "Please set IAO_SECRET_KEY=<your-key> before starting the service. (Security policy)"
         )
 
 

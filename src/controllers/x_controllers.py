@@ -28,6 +28,7 @@ from ..schemas.x_schemas import (
     PageInput,
     ProjectIdInput,
     QueryDataInput,
+    RegisterInput,
     ResponseType,
     SearchActivityInput,
     SearchProjectInput,
@@ -138,6 +139,10 @@ class Mutation:
     @strawberry.mutation(description="管理员账号密码登录")
     async def login(self, info: Info, input: LoginInput) -> ResponseType:
         return await x_views.view_login(info, input)
+
+    @strawberry.mutation(description="普通用户注册（邮箱 + 密码至少 8 位，注册即登录）")
+    async def register(self, info: Info, input: RegisterInput) -> ResponseType:
+        return await x_views.view_register(info, input)
 
     @strawberry.mutation(description="登出")
     async def logout(self, info: Info) -> ResponseType:

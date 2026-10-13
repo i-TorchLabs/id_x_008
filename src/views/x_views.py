@@ -66,6 +66,7 @@ from ..schemas.x_schemas import (
     PageInput,
     ProjectIdInput,
     QueryDataInput,
+    RegisterInput,
     ResponseType,
     SearchActivityInput,
     SearchProjectInput,
@@ -338,13 +339,14 @@ def _sanitize_html(html: str) -> str:
 
 
 def _activity_dict(activity: IaoEnlistActivity, project: IaoEnlistProject | None,
-                   apply_count: int, occupied_topics: list[str] | None = None) -> dict:
+                   apply_count: int, occupied_topics: list[str] | None = None,
+                   display_id: int | None = None) -> dict:
     quota = 0
     try:
         quota = int(project.quota) if project and project.quota not in ("N/A", "") else 0
     except ValueError:
         quota = 0
-    return {
+    item = {
         "activity_id": activity.id,
         "activity_name": activity.name,
         "project_id": activity.project_id,
@@ -362,6 +364,9 @@ def _activity_dict(activity: IaoEnlistActivity, project: IaoEnlistProject | None
         "time": activity.time.isoformat() if activity.time else "",
         "update": activity.update.isoformat() if activity.update else "",
     }
+    if display_id is not None:
+        item["display_id"] = display_id
+    return item
 
 
 def _apply_dict(obj: IaoEnlistApply, activity: IaoEnlistActivity | None = None) -> dict:
@@ -473,9 +478,9 @@ async def view_login(info: Info, input: LoginInput) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
+            # 区分管理员 / 普通用户：按用户名匹配任意角色，登录后依据 role 跳转对应端
             user = await _first(session, select(IaoEnlistUser).where(
                 IaoEnlistUser.username == input.username,
-                IaoEnlistUser.role == "admin",
             ))
             if not user or not _verify_password(raw_password, user.password):
                 return _resp(403, "Invalid username or password")
@@ -486,6 +491,79 @@ async def view_login(info: Info, input: LoginInput) -> ResponseType:
             user.key = token
             user.time = datetime.now(timezone.utc).replace(tzinfo=None)
             await session.commit()
+            return _resp(200, "success", {
+                "user_id": user.id,
+                "username": user.username,
+                "role": user.role,
+                "token": token,
+            })
+        except Exception as e:
+            logger.error(f"{_rid()}{traceback.format_exc()}")
+            await session.rollback()
+            return _resp(500, "Server error")
+
+
+# ===== 普通用户注册 =====
+_EMAIL_RE = _re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
+
+
+async def view_register(info: Info, input: RegisterInput) -> ResponseType:
+    """普通用户注册：用户名为邮箱，密码至少 8 位；注册成功即签发会话 token（role=user）。
+
+    校验规则：
+    - 邮箱合法格式（400 非法邮箱）；
+    - 密码至少 8 位（400 长度不足）；
+    - 邮箱已被注册（403 重复）；
+    - 学号（SID）已存在（403 重复，仅校验提交了真实学号者）。
+    """
+    email = (input.email or "").strip().lower()
+    raw_password = input.password
+    if input.encrypted_password:
+        try:
+            from ..utils.crypto_util import decrypt_password
+            raw_password = decrypt_password(input.encrypted_password)
+        except Exception:
+            return _resp(400, "Invalid encrypted password")
+    if not raw_password:
+        return _resp(400, "Password is required")
+    if not _EMAIL_RE.match(email):
+        return _resp(400, "Please enter a valid email address")
+    if len(raw_password) < 8:
+        return _resp(400, "Password must be at least 8 characters")
+
+    maker = get_session()
+    async with maker() as session:
+        try:
+            existing = await _first(session, select(IaoEnlistUser).where(
+                IaoEnlistUser.username == email,
+            ))
+            if existing:
+                return _resp(403, "The email is already registered")
+            # 学号（SID）唯一性校验：仅在提交了真实学号时检查，
+            # 避免未填学号者共享 "N/A" 占位导致的误报冲突。
+            sid = (input.number or "").strip()
+            if sid and sid != "N/A":
+                sid_used = await _first(session, select(IaoEnlistUser).where(
+                    IaoEnlistUser.number == sid,
+                ))
+                if sid_used:
+                    return _resp(403, "The student ID is already registered")
+            token = _new_token()
+            user = IaoEnlistUser(
+                username=email,
+                password=_hash_password(raw_password),
+                role="user",
+                key=token,
+                name=(input.name or "").strip() or "N/A",
+                grade=(input.grade or "").strip() or "N/A",
+                number=(input.number or "").strip() or "N/A",
+                email=email,
+                time=datetime.now(timezone.utc).replace(tzinfo=None),
+            )
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+            logger.info(f"{_rid()}User registered: {email} id={user.id}")
             return _resp(200, "success", {
                 "user_id": user.id,
                 "username": user.username,
@@ -529,7 +607,7 @@ async def view_user_oauth(info: Info, input: OauthInput) -> ResponseType:
     """
     if _oauth_config_missing():
         logger.error(f"{_rid()}OAuth2 服务端配置缺失（IAO_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI）")
-        return _resp(500, "SSO 服务未配置")
+        return _resp(500, "SSO service is not configured")
 
     # 授权码授予流：code 优先；旧 oauth_token 仅为兼容保留
     logger.info(f"{_rid()}OAuth 登录请求: has_code={bool(input.code)} has_token={bool(input.oauth_token)}")
@@ -1173,8 +1251,11 @@ async def view_get_activity_list(info: Info, input: PageInput) -> ResponseType:
     maker = get_session()
     async with maker() as session:
         try:
+            # 按活动时间（activity_start_time）排序
             stmt = select(IaoEnlistActivity).order_by(
-                desc(IaoEnlistActivity.id) if input.sort_order == "desc" else IaoEnlistActivity.id
+                desc(IaoEnlistActivity.activity_start_time)
+                if input.sort_order == "desc"
+                else IaoEnlistActivity.activity_start_time
             )
             start = _ms_to_dt(input.start_date)
             end = _ms_to_dt(input.end_date)
@@ -1185,10 +1266,12 @@ async def view_get_activity_list(info: Info, input: PageInput) -> ResponseType:
             result = await session.execute(stmt)
             activities = result.scalars().all()
             projects = await _project_map(session)
-            items = [
-                _activity_dict(a, projects.get(a.project_id or -1), await _apply_count(session, a.id))
-                for a in activities
-            ]
+            # 全量按排序后赋予顺序编号（display_id），分页后仍保持全局连续
+            items = []
+            for i, a in enumerate(activities, start=1):
+                item = _activity_dict(a, projects.get(a.project_id or -1), await _apply_count(session, a.id))
+                item["display_id"] = i
+                items.append(item)
             total = len(items)
             offset = max(input.offset, 1)
             limit = max(input.limit, 1)
@@ -1338,9 +1421,10 @@ async def _search_activity_by_name(info: Info, input: SearchActivityInput) -> Re
     maker = get_session()
     async with maker() as session:
         try:
+            # 按活动时间（activity_start_time）排序
             stmt = select(IaoEnlistActivity).where(
                 IaoEnlistActivity.name.like(f"%{input.fuzzy_name}%")
-            ).order_by(IaoEnlistActivity.id)
+            ).order_by(IaoEnlistActivity.activity_start_time)
             start = _ms_to_dt(input.start_date)
             end = _ms_to_dt(input.end_date)
             if start:
@@ -1350,10 +1434,12 @@ async def _search_activity_by_name(info: Info, input: SearchActivityInput) -> Re
             result = await session.execute(stmt)
             activities = result.scalars().all()
             projects = await _project_map(session)
-            items = [
-                _activity_dict(a, projects.get(a.project_id or -1), await _apply_count(session, a.id))
-                for a in activities
-            ]
+            # 全量按排序后赋予顺序编号（display_id），分页后仍保持全局连续
+            items = []
+            for i, a in enumerate(activities, start=1):
+                item = _activity_dict(a, projects.get(a.project_id or -1), await _apply_count(session, a.id))
+                item["display_id"] = i
+                items.append(item)
             total = len(items)
             offset = max(input.offset, 1)
             limit = max(input.limit, 1)
@@ -1417,7 +1503,7 @@ UPLOAD_COLUMNS = ["project_name", "activity_name", "activity_start_time", "activ
 
 
 async def view_upload_activity(info: Info, input: UploadActivityInput) -> ResponseType:
-    """Excel 批量排期上传：project_name 解析为 project_id 后，命中已有记录（同 project_id + activity_start_time）则更新，否则新增。"""
+    """Excel 批量排期上传：project_name 解析为 project_id 后，Excel 每一行独立新增一条活动记录（不做批内/库内合并）。"""
     if not await _verify_admin(info):
         return _resp(401, "Token Error")
     if not input.file_name.lower().endswith(".xlsx"):
@@ -1444,6 +1530,12 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
     fail_count = 0
     async with maker() as session:
         try:
+            # 每行独立落库：Excel 的每一行都新增一条活动记录。
+            # - 批内不再按 (project_id, activity_start_time) 合并，避免把
+            #   多条相同开始时间的排期压成一条；
+            # - 也不与库中已有记录合并，保证“一行一记录”。
+            # 关闭 autoflush，让批量新增统一随末尾 commit 落入库中。
+            session.autoflush = False
             for _, row in df.iterrows():
                 try:
                     project_name = str(row["project_name"]).strip() if pd.notna(row["project_name"]) else ""
@@ -1460,28 +1552,18 @@ async def view_upload_activity(info: Info, input: UploadActivityInput) -> Respon
                         fail_count += 1
                         continue
 
-                    existing = await _first(session, select(IaoEnlistActivity).where(
-                        IaoEnlistActivity.project_id == project.id,
-                        IaoEnlistActivity.activity_start_time == start_time,
-                    ))
-                    if existing:
-                        existing.name = name
-                        existing.activity_end_time = end_time
-                        existing.apply_start_time = apply_start
-                        existing.apply_end_time = apply_end
-                        existing.update = datetime.now(timezone.utc).replace(tzinfo=None)
-                    else:
-                        now = datetime.now(timezone.utc).replace(tzinfo=None)
-                        session.add(IaoEnlistActivity(
-                            name=name,
-                            project_id=project.id,
-                            activity_start_time=start_time,
-                            activity_end_time=end_time,
-                            apply_start_time=apply_start,
-                            apply_end_time=apply_end,
-                            time=now,
-                            update=now,
-                        ))
+                    now = datetime.now(timezone.utc).replace(tzinfo=None)
+                    target = IaoEnlistActivity(
+                        name=name,
+                        project_id=project.id,
+                        activity_start_time=start_time,
+                        activity_end_time=end_time,
+                        apply_start_time=apply_start,
+                        apply_end_time=apply_end,
+                        time=now,
+                        update=now,
+                    )
+                    session.add(target)
                     success_count += 1
                 except Exception as row_err:
                     logger.error(f"{_rid()}Schedule row processing failed: {row_err}")

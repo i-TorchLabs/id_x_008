@@ -12,7 +12,7 @@ import { SF_TEXT, tokens } from "@/utils/tokens";
 const TITLE_MAP: Record<string, string> = {
   "/user/home": "Activities",
   "/user/records": "My Records",
-  "/user/activity": "Apply",
+  // 报名详情页在内容区展示活动名与元信息，页眉不再居中显示 "Apply" 字样
 };
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {

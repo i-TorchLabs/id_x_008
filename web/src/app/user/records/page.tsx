@@ -18,6 +18,20 @@ export default function RecordsPage() {
   const [items, setItems] = useState<ApplyRecord[]>([]);
   const [message, setMessage] = useState("");
   const [cancelling, setCancelling] = useState<ApplyRecord | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleCancel = async () => {
+    if (!user || !cancelling || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await cancelApply({ user_id: user.user_id, apply_id: cancelling.id });
+      setCancelling(null);
+      if (res.code === 200) await load();
+      else setMessage(res.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const load = async () => {
     if (!user) return;
@@ -91,13 +105,9 @@ export default function RecordsPage() {
         footer={
           <>
             <PillButton onClick={() => setCancelling(null)}>Keep It</PillButton>
-            <PillButton primary onClick={async () => {
-              if (!user || !cancelling) return;
-              const res = await cancelApply({ user_id: user.user_id, apply_id: cancelling.id });
-              setCancelling(null);
-              if (res.code === 200) load();
-              else setMessage(res.message);
-            }}>Confirm</PillButton>
+            <PillButton primary disabled={submitting} onClick={handleCancel}>
+              {submitting ? "Cancelling…" : "Confirm"}
+            </PillButton>
           </>
         }
       >

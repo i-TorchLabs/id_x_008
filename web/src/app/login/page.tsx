@@ -5,20 +5,27 @@
  *  标题 32px 粗体、输入组（左侧标签）、紫色 Login、橙色 Go Student Client。 */
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { login } from "@/api/admin";
+import { login, register } from "@/api/admin";
 import { useUser } from "@/stores/userStore";
 import { redirectToAdfsAuthorize } from "@/utils/sso";
 import { SF_TEXT, tokens } from "@/utils/tokens";
 
+type Mode = "login" | "register";
+
 export default function LoginPage() {
+  const [mode, setMode] = useState<Mode>("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmedPassword, setConfirmedPassword] = useState("");
+  const [name, setName] = useState("");
+  const [sid, setSid] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const { setUser } = useUser();
   const router = useRouter();
 
+  // 登录：依据返回 role 区分管理员 / 普通用户，分别跳转后台管理页 / 活动报名页
   const doLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -26,15 +33,47 @@ export default function LoginPage() {
     try {
       const res = await login(username, password);
       if (res.code === 200 && res.parsed) {
+        const role = res.parsed.role === "admin" ? "admin" : "user";
         setUser({
           user_id: res.parsed.user_id,
-          name: username,
-          role: "admin",
+          name: res.parsed.username || username,
+          role,
           token: res.parsed.token,
         });
-        router.replace("/admin/project-management");
+        router.replace(role === "admin" ? "/admin/project-management" : "/user/home");
       } else {
         setError(res.message || "Login failed");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 注册：用户名为邮箱，密码至少 8 位，两次输入一致后提交；注册成功即自动登录跳转活动报名页
+  const doRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+    if (password !== confirmedPassword) {
+      setError("The two passwords do not match");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await register({ email: username, password, name: name.trim(), number: sid.trim() });
+      if (res.code === 200 && res.parsed) {
+        setUser({
+          user_id: res.parsed.user_id,
+          name: res.parsed.username || username,
+          role: "user",
+          token: res.parsed.token,
+        });
+        router.replace("/user/home");
+      } else {
+        setError(res.message || "Registration failed");
       }
     } finally {
       setBusy(false);
@@ -73,7 +112,7 @@ export default function LoginPage() {
 
   // 输入组容器：白底 + 圆角描边，hover 加深、focus-within 紫色光环
   const groupWrapClass =
-    "flex items-center w-full rounded-[10px] border border-[#e0e0e6] bg-white " +
+    "flex items-center w-[calc(100%_-_16px)] mx-auto rounded-[10px] border border-[#e0e0e6] bg-white " +
     "shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-200 " +
     "hover:border-[#c3c3cc] " +
     "focus-within:border-[#763890] focus-within:ring-4 focus-within:ring-[#763890]/15 " +
@@ -154,18 +193,24 @@ export default function LoginPage() {
               width: "500px",
               height: "500px",
               background: "#bbdefb",
-              padding: "0 40px",
+              padding: "0 28px",
             }}
           >
-            <div style={{ fontWeight: "bold", fontSize: "28px", marginBottom: "32px", color: tokens.fg, textAlign: "center", width: "100%", whiteSpace: "nowrap" }}>
-              Activity Management System
-            </div>
-            <div style={{ fontSize: "25px", marginBottom: "32px", color: tokens.fg, textAlign: "center", width: "100%" }}>
-              IAO Login In
-            </div>
+            {/* 登录主页面保留标题：注册页面不显示 */}
+            {mode === "login" && (
+              <>
+                <div style={{ fontWeight: "bold", fontSize: "28px", marginBottom: "32px", color: tokens.fg, textAlign: "center", width: "100%", whiteSpace: "nowrap" }}>
+                  Activity Management System
+                </div>
+                <div style={{ fontSize: "25px", marginBottom: "32px", color: tokens.fg, textAlign: "center", width: "100%" }}>
+                  IAO Login In
+                </div>
+              </>
+            )}
 
-            <form onSubmit={doLogin} style={{ width: "60%", minWidth: "260px" }}>
-              <div className={groupWrapClass}>
+            <form onSubmit={mode === "login" ? doLogin : doRegister} style={{ width: "100%", minWidth: "360px", maxWidth: "480px" }}>
+              {/* 用户名 / 邮箱 */}
+              <div className={groupWrapClass} style={{ width: "calc(100% - 20%)", margin: "0 auto" }}>
                 <span style={groupLabelStyle} aria-hidden>
                   <svg width="18" height="18" {...iconStroke}>
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -174,13 +219,15 @@ export default function LoginPage() {
                 </span>
                 <input
                   style={groupInputStyle}
-                  placeholder="Please input username"
+                  placeholder={mode === "register" ? "Please input email" : "Please input username / email"}
                   autoComplete="off"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
               </div>
-              <div className={groupWrapClass} style={{ marginTop: "16px", position: "relative" }}>
+
+              {/* 密码 */}
+              <div className={groupWrapClass} style={{ width: "calc(100% - 20%)", margin: "16px auto 0", position: "relative" }}>
                 <span style={groupLabelStyle} aria-hidden>
                   <svg width="18" height="18" {...iconStroke}>
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -190,7 +237,7 @@ export default function LoginPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   style={{ ...groupInputStyle, paddingRight: "44px" }}
-                  placeholder="Please input password"
+                  placeholder={mode === "register" ? "Password (at least 8 chars)" : "Please input password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -225,6 +272,63 @@ export default function LoginPage() {
                 </button>
               </div>
 
+              {/* 注册模式：确认密码 + 可选姓名 */}
+              {mode === "register" && (
+                <>
+                  <div className={groupWrapClass} style={{ width: "calc(100% - 20%)", margin: "16px auto 0", position: "relative" }}>
+                    <span style={groupLabelStyle} aria-hidden>
+                      <svg width="18" height="18" {...iconStroke}>
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </span>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      style={{ ...groupInputStyle, paddingRight: "44px" }}
+                      placeholder="Confirm password"
+                      autoComplete="off"
+                      value={confirmedPassword}
+                      onChange={(e) => setConfirmedPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className={groupWrapClass} style={{ width: "calc(100% - 20%)", margin: "16px auto 0" }}>
+                    <span style={groupLabelStyle} aria-hidden>
+                      <svg width="18" height="18" {...iconStroke}>
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+                      </svg>
+                    </span>
+                    <input
+                      style={groupInputStyle}
+                      placeholder="Name (optional)"
+                      autoComplete="off"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                  {/* 学号（SID / Student ID，可选） */}
+                  <div className={groupWrapClass} style={{ width: "calc(100% - 20%)", margin: "16px auto 0" }}>
+                    <span style={groupLabelStyle} aria-hidden>
+                      <svg width="18" height="18" {...iconStroke}>
+                        <path d="M4 7 V17" />
+                        <path d="M20 7 V17" />
+                        <path d="M4 12 h16" />
+                        <rect x="6" y="4" width="12" height="16" rx="2" />
+                        <path d="M12 10v4" />
+                        <path d="M10 12h4" />
+                      </svg>
+                    </span>
+                    <input
+                      style={groupInputStyle}
+                      placeholder="Student ID (optional)"
+                      autoComplete="off"
+                      value={sid}
+                      onChange={(e) => setSid(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+
               {error && (
                 <div style={{ marginTop: "12px", fontSize: "13px", color: tokens.error }}>{error}</div>
               )}
@@ -235,7 +339,9 @@ export default function LoginPage() {
                   disabled={busy}
                   className="transition-opacity duration-150 hover:opacity-85 disabled:opacity-40"
                   style={{
-                    width: "100%",
+                    width: "220px",
+                    margin: "0 auto",
+                    display: "block",
                     height: "34px",
                     fontSize: "14px",
                     fontWeight: 500,
@@ -246,28 +352,61 @@ export default function LoginPage() {
                     cursor: busy ? "not-allowed" : "pointer",
                   }}
                 >
-                  {busy ? "Loading..." : "Login"}
+                  {busy ? "Loading..." : mode === "login" ? "Login" : "Register"}
                 </button>
               </div>
-              <div style={{ marginTop: "24px" }}>
-                <button
-                  type="button"
-                  onClick={doSso}
-                  className="transition-opacity duration-150 hover:opacity-85"
-                  style={{
-                    width: "100%",
-                    height: "34px",
-                    fontSize: "14px",
-                    fontWeight: 500,
-                    color: "#fff",
-                    background: "#ee9a00",
-                    border: "1px solid #ee9a00",
-                    borderRadius: "3px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Go Student Client
-                </button>
+
+              {/* 登录模式：学生 SSO 入口 */}
+              {mode === "login" && (
+                <div style={{ marginTop: "16px" }}>
+                  <button
+                    type="button"
+                    onClick={doSso}
+                    className="transition-opacity duration-150 hover:opacity-85"
+                    style={{
+                      width: "220px",
+                      margin: "0 auto",
+                      display: "block",
+                      height: "34px",
+                      fontSize: "14px",
+                      fontWeight: 500,
+                      color: "#fff",
+                      background: "#ee9a00",
+                      border: "1px solid #ee9a00",
+                      borderRadius: "3px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Go Student Client
+                  </button>
+                </div>
+              )}
+
+              {/* 登录 / 注册 切换 */}
+              <div style={{ marginTop: "16px", textAlign: "center" }}>
+                <span style={{ fontSize: "13px", color: tokens.fg3 }}>
+                  {mode === "login" ? (
+                    <>No account?{" "}
+                      <a
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); setMode("register"); setError(""); }}
+                        style={{ color: tokens.accent, textDecoration: "none", fontWeight: 500 }}
+                      >
+                        Register
+                      </a>
+                    </>
+                  ) : (
+                    <>Already have an account?{" "}
+                      <a
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); setMode("login"); setError(""); }}
+                        style={{ color: tokens.accent, textDecoration: "none", fontWeight: 500 }}
+                      >
+                        Login
+                      </a>
+                    </>
+                  )}
+                </span>
               </div>
             </form>
           </div>
