@@ -1,95 +1,95 @@
 <div align="center">
 
-# id_x_008: 高校职业咨询预约与通知模块
+# ID008: IAO Activity Reservation System
 
-**单点登录 · 时段预约 · 双向邮件通知 —— 职业咨询预约一站式闭环**
+**Single Sign-On · Time-Slot Reservation · Bidirectional Email Notification — A One-Stop Career Consultation Booking Loop**
 
-![编号](https://img.shields.io/static/v1?label=%E7%BC%96%E5%8F%B7&message=0.1.0&color=C3272B&style=for-the-badge&labelColor=555)
-![协议](https://img.shields.io/static/v1?label=%E5%8D%8F%E8%AE%AE&message=AGPL-3.0&color=C3272B&style=for-the-badge&labelColor=555)
-![作者](https://img.shields.io/static/v1?label=%E4%BD%9C%E8%80%85&message=X_Torch&color=C3272B&style=for-the-badge&labelColor=555)
-![组织](https://img.shields.io/static/v1?label=%E7%BB%84%E7%BB%87&message=i-Core&color=C3272B&style=for-the-badge&labelColor=555)
-![引擎](https://img.shields.io/static/v1?label=%E5%BC%95%E6%93%8E&message=Litestar%2FStrawberry&color=C3272B&style=for-the-badge&labelColor=555)
-![语言](https://img.shields.io/static/v1?label=%E8%AF%AD%E8%A8%80&message=Python&color=C3272B&style=for-the-badge&labelColor=555)
-![数据库](https://img.shields.io/static/v1?label=%E6%95%B0%E6%8D%AE%E5%BA%93&message=PostgreSQL&color=C3272B&style=for-the-badge&labelColor=555)
+![ID](https://img.shields.io/static/v1?label=ID&message=008&color=C3272B&style=for-the-badge&labelColor=555)
+![License](https://img.shields.io/static/v1?label=License&message=AGPL-3.0&color=C3272B&style=for-the-badge&labelColor=555)
+![Author](https://img.shields.io/static/v1?label=Author&message=Ray&color=C3272B&style=for-the-badge&labelColor=555)
+![Org](https://img.shields.io/static/v1?label=Org&message=TorchLabs&color=C3272B&style=for-the-badge&labelColor=555)
+![Engine](https://img.shields.io/static/v1?label=Engine&message=Litestar%2FStrawberry&color=C3272B&style=for-the-badge&labelColor=555)
+![Language](https://img.shields.io/static/v1?label=Language&message=Python&color=C3272B&style=for-the-badge&labelColor=555)
+![Database](https://img.shields.io/static/v1?label=Database&message=PostgreSQL&color=C3272B&style=for-the-badge&labelColor=555)
 
 </div>
 
 ---
 
-## 1. 简介 (Introduction)
+## 1. Introduction
 
-- **Slogan**: 单点登录 · 时段预约 · 双向邮件通知 —— 职业咨询预约一站式闭环。
-- **Description**: id_x_008 是 i-Core 内核的可插拔业务模块，面向高校就业指导中心的职业咨询预约场景。模块通过 Microsoft ADFS（Active Directory Federation Services，活动目录联合服务）OAuth 实现单点登录，学生可在线查看顾问可约时段并完成报名与取消，系统在预约状态变更时自动向学生与顾问双方发送 SMTP 邮件提醒。模块以 Strawberry GraphQL 单端点对外暴露全部业务查询与变更，数据经 SQLAlchemy 异步 ORM 持久化至 PostgreSQL。模块既可作为 i-Core 引擎插件由内核统一托管路由、数据库连接池与安全中间件，也可脱离内核独立运行以供本地开发调试，同一份代码覆盖「生产托管」与「独立调试」两套部署形态。
+- **Slogan**: Single Sign-On · Time-Slot Reservation · Bidirectional Email Notification — A One-Stop Career Consultation Booking Loop.
+- **Description**: id_x_008 is a pluggable business module of the i-Core kernel, designed for career consultation booking scenarios in university career guidance centers. The module implements single sign-on via Microsoft ADFS (Active Directory Federation Services) OAuth; students can view advisor availability online and complete sign-ups and cancellations, while the system automatically sends SMTP email reminders to both students and advisors whenever a reservation changes state. The module exposes all business queries and mutations through a single Strawberry GraphQL endpoint, with data persisted to PostgreSQL via the SQLAlchemy async ORM. The module can either run as an i-Core engine plugin — with routing, database connection pooling, and security middleware managed centrally by the kernel — or run standalone, detached from the kernel, for local development and debugging. A single codebase thus covers both the "production-hosted" and "standalone-debug" deployment forms.
 
-## 2. 核心特性 (Features)
+## 2. Features
 
-- ADFS 单点登录：完整 OAuth 授权码流程，以授权码换取 id_token 并完成 JWKS 验签，解析 UPN（User Principal Name，用户主体名称）声明确定身份。
-- 咨询预约管理：学生可查看顾问可约时段并完成报名与取消，时段与预约记录经异步 ORM 持久化至 PostgreSQL。
-- 双向邮件通知：报名与取消触发双向 SMTP 邮件，分别通知学生（"Your sign-up / cancellation"）与顾问（"Consultation reservation / cancellation reminder"）。
-- GraphQL 单端点：基于 Strawberry GraphQL 的 Litestar 集成，全部业务查询与变更统一收敛至 `/b/id_x_008/graphql`。
-- 数据导入导出：依托 pandas、openpyxl、xlsxwriter 支持预约数据的 Excel 处理与报表导出。
+- ADFS Single Sign-On: A complete OAuth authorization-code flow that exchanges the code for an id_token, performs JWKS signature verification, and resolves the UPN (User Principal Name) claim to establish identity.
+- Consultation Reservation Management: Students can view advisor availability and complete sign-ups and cancellations; time slots and reservation records are persisted to PostgreSQL through the async ORM.
+- Bidirectional Email Notification: Sign-ups and cancellations trigger two-way SMTP emails, notifying the student ("Your sign-up / cancellation") and the advisor ("Consultation reservation / cancellation reminder") respectively.
+- Single GraphQL Endpoint: All business queries and mutations converge on `/b/id_x_008/graphql` via the Strawberry GraphQL Litestar integration.
+- Data Import/Export: Reservation data Excel processing and report export are supported through pandas, openpyxl, and xlsxwriter.
 
-## 3. 项目亮点 (Highlights)
+## 3. Highlights
 
-1. **双模运行架构** —— 同一份插件代码即可作为 i-Core 引擎插件运行（复用内核限流、Bearer 鉴权、方法白名单等安全中间件），又可经 `python x_plugin.py` 独立起服（默认端口 8101），生产与本地调试零摩擦切换。
-2. **ADFS SSO 降级容错** —— 完整实现 ADFS「授权码 → id_token → JWKS 验签」链路；当 ADFS JWKS 端点不可达时自动降级为 id_token 结构校验，保证内网或离线环境下登录不中断（运行日志可见降级路径与 UPN 声明解析结果）。
-3. **邮件通知与主流程解耦** —— 报名与取消触发学生、顾问双向邮件，SMTP 失败仅记录 error 且不阻断预约主流程，保障核心交易可用性（日志中"does not affect main flow"即此设计）。
-4. **连接池工程化调优** —— 异步数据库引擎采用 `pool_size=32`、`pool_recycle=360`、`pool_pre_ping` 配置，兼顾并发吞吐与长连接稳定性，并对断连做预检重连。
-5. **插件契约零侵入** —— 仅实现 `PluginInterface`（`build_tables` / `set_session_maker` / `required_extensions`）与 `register_routers(prefix)`，经 `x_models._contracts` 运行时校验即可接入内核，无需修改内核任何一行代码。
-6. **依赖安全约束** —— `requirements.txt` 全部依赖采用 `>=x,<y` 兼容性上界，防止意外升级至含 breaking change 或已知漏洞的主版本。
-7. **懒加载模块隔离** —— ORM Base 与控制器均按需导入，独立运行时无需引擎环境即可起服；会话工厂由内核建表后注入，模块不自行管理连接池生命周期。
+1. **Dual-Mode Runtime Architecture** — The same plugin code runs either as an i-Core engine plugin (reusing the kernel's rate limiting, Bearer authentication, and method allowlist security middleware) or as a standalone service via `python x_plugin.py` (default port 8101), enabling frictionless switching between production and local debugging.
+2. **ADFS SSO Fallback Tolerance** — The full ADFS "authorization code → id_token → JWKS verification" chain is implemented; when the ADFS JWKS endpoint is unreachable, the module automatically degrades to id_token structural validation so that login is not interrupted in intranet or offline environments (the degradation path and UPN claim resolution are visible in runtime logs).
+3. **Email Notification Decoupled from the Main Flow** — Sign-ups and cancellations trigger student- and advisor-facing emails; an SMTP failure is only logged as an error and does not block the reservation main flow, preserving core-transaction availability (the "does not affect main flow" wording in logs reflects this design).
+4. **Engineered Connection-Pool Tuning** — The async database engine uses `pool_size=32`, `pool_recycle=360`, and `pool_pre_ping` to balance concurrent throughput with long-connection stability, with pre-ping reconnection on dropped connections.
+5. **Zero-Intrusion Plugin Contract** — The module implements only `PluginInterface` (`build_tables` / `set_session_maker` / `required_extensions`) and `register_routers(prefix)`; runtime validation via `x_models._contracts` is sufficient to integrate with the kernel without modifying a single line of kernel code.
+6. **Dependency Safety Constraints** — All dependencies in `requirements.txt` use `>=x,<y` compatibility upper bounds to prevent accidental upgrades to major versions containing breaking changes or known vulnerabilities.
+7. **Lazy-Loaded Module Isolation** — The ORM Base and controllers are imported on demand, so the standalone runtime can start without an engine environment; the session factory is injected by the kernel after table creation, and the module never manages the connection-pool lifecycle itself.
 
-## 4. 技术栈 (Tech Stack)
+## 4. Tech Stack
 
-<p align="center">表 4-1 技术栈一览</p>
+<p align="center">Table 4-1 Tech Stack Overview</p>
 
-| 分类 | 名称 | 版本 | 用途 |
+| Category | Name | Version | Purpose |
 |------|------|------|------|
-| 编程语言 | Python | ≥ 3.10 | 全栈实现语言 |
-| Web 框架 | Litestar[standard] | ≥ 2.0, < 3.0 | 异步 ASGI 框架与路由体系 |
-| API 规范 | Strawberry GraphQL | ≥ 0.200, < 1.0 | GraphQL 端点（Litestar 集成） |
-| ORM | SQLAlchemy[asyncio] | ≥ 2.0, < 3.0 | 异步 ORM 与模型层 |
-| 数据库驱动 | asyncpg | ≥ 0.29, < 1.0 | PostgreSQL 异步驱动 |
-| 数据库 | PostgreSQL | — | 主存储 |
-| 数据处理 | pandas / openpyxl / xlsxwriter | ≥ 2.0 / ≥ 3.1 / ≥ 3.1 | Excel 导入导出与报表 |
-| ASGI 服务器 | uvicorn | ≥ 0.29, < 1.0 | 独立运行模式服务器 |
-| 加密 | cryptography | ≥ 42.0, < 45.0 | 配置与密钥加密 |
+| Programming Language | Python | ≥ 3.10 | Full-stack implementation language |
+| Web Framework | Litestar[standard] | ≥ 2.0, < 3.0 | Async ASGI framework and routing system |
+| API Specification | Strawberry GraphQL | ≥ 0.200, < 1.0 | GraphQL endpoint (Litestar integration) |
+| ORM | SQLAlchemy[asyncio] | ≥ 2.0, < 3.0 | Async ORM and model layer |
+| Database Driver | asyncpg | ≥ 0.29, < 1.0 | PostgreSQL async driver |
+| Database | PostgreSQL | — | Primary storage |
+| Data Processing | pandas / openpyxl / xlsxwriter | ≥ 2.0 / ≥ 3.1 / ≥ 3.1 | Excel import/export and reporting |
+| ASGI Server | uvicorn | ≥ 0.29, < 1.0 | Standalone runtime server |
+| Cryptography | cryptography | ≥ 42.0, < 45.0 | Configuration and key encryption |
 
-## 5. 整体架构图 (Overall Architecture Diagram)
+## 5. Overall Architecture Diagram
 
 ```mermaid
 graph TD
-    subgraph 客户端层
-        STU[学生 Browser]
-        ADV[顾问 Browser]
+    subgraph Client Layer
+        STU[Student Browser]
+        ADV[Advisor Browser]
     end
 
-    subgraph 网关层
-        HP[HAProxy TLS 终止]
+    subgraph Gateway Layer
+        HP[HAProxy TLS Termination]
         GW[Granian / Uvicorn ASGI]
     end
 
-    subgraph 内核层 i-Core
-        MW[RequestMiddleware 限流/鉴权/方法白名单]
-        ADAPT[插件装载器 adapt.py]
+    subgraph Kernel Layer i-Core
+        MW[RequestMiddleware Rate-limit/Auth/Method Allowlist]
+        ADAPT[Plugin Loader adapt.py]
     end
 
-    subgraph 模块层 id_x_008
-        ROUTER[register_routers 路由注册]
-        AUTH[OAuth/ADFS 控制器 登录回调/id_token 验签降级]
-        GQL[GraphQL 端点 Strawberry]
-        SVC[预约业务服务 报名/取消/时段]
-        MAIL[邮件服务 SMTP]
-        ORM[ORM 模型 SQLAlchemy Async]
+    subgraph Module Layer id_x_008
+        ROUTER[register_routers Route Registration]
+        AUTH[OAuth/ADFS Controller Login Callback/id_token Verify Fallback]
+        GQL[GraphQL Endpoint Strawberry]
+        SVC[Reservation Service Apply/Cancel/Slot]
+        MAIL[Email Service SMTP]
+        ORM[ORM Models SQLAlchemy Async]
     end
 
-    subgraph 数据层
+    subgraph Data Layer
         PG[(PostgreSQL)]
     end
 
-    subgraph 外部依赖
+    subgraph External Dependencies
         ADFS[Microsoft ADFS OAuth IdP + JWKS]
-        SMTP[SMTP 邮件服务器]
+        SMTP[SMTP Mail Server]
     end
 
     STU -->|HTTPS| HP
@@ -97,10 +97,10 @@ graph TD
     HP -->|HTTP :7000| GW
     GW --> MW
     MW --> ADAPT
-    ADAPT -->|挂载 /b/id_x_008| ROUTER
+    ADAPT -->|mount /b/id_x_008| ROUTER
     ROUTER --> AUTH
     ROUTER --> GQL
-    AUTH -->|授权码 / JWKS| ADFS
+    AUTH -->|authcode / JWKS| ADFS
     GQL --> SVC
     SVC --> ORM
     SVC --> MAIL
@@ -108,9 +108,9 @@ graph TD
     MAIL -->|SMTP| SMTP
 ```
 
-<p align="center">图 5-1 id_x_008 整体架构图</p>
+<p align="center">Figure 5-1 id_x_008 Overall Architecture</p>
 
-## 6. 请求流转图 (Request Flow Diagram)
+## 6. Request Flow Diagram
 
 ```mermaid
 sequenceDiagram
@@ -118,100 +118,100 @@ sequenceDiagram
     participant GW as Granian/Uvicorn
     participant MW as RequestMiddleware
     participant RT as id_x_008 Router
-    participant SVC as 预约/鉴权服务
+    participant SVC as Reservation/Auth Service
     participant DB as PostgreSQL
     participant ADFS as ADFS
     participant SMTP as SMTP
 
-    CL->>GW: GET /b/id_x_008/login OAuth 授权码
+    CL->>GW: GET /b/id_x_008/login OAuth auth code
     GW->>MW: ASGI scope
-    alt 非免鉴权白名单且无 Bearer
+    alt Not in auth-exempt allowlist and no Bearer
         MW-->>CL: 401 Unauthorized
     end
-    MW->>RT: 路由分发
-    RT->>SVC: OAuth 登录 has_code=True
-    SVC->>ADFS: 授权码换取 id_token
+    MW->>RT: Route dispatch
+    RT->>SVC: OAuth login has_code=True
+    SVC->>ADFS: Exchange auth code for id_token
     ADFS-->>SVC: id_token
-    SVC->>SVC: JWKS 验签
-    alt JWKS 不可达
-        SVC->>SVC: 降级为 id_token 结构校验
+    SVC->>SVC: JWKS signature verification
+    alt JWKS unreachable
+        SVC->>SVC: Degrade to id_token structural validation
     end
-    SVC-->>CL: 登录态/会话凭证
+    SVC-->>CL: Login state / session credential
 
     CL->>GW: POST /b/id_x_008/graphql applyConsultation
-    GW->>MW: Bearer 鉴权
-    alt 超出限流
+    GW->>MW: Bearer auth
+    alt Rate limit exceeded
         MW-->>CL: 429 Too Many Requests
     end
     MW->>RT: GraphQL Resolver
-    RT->>SVC: 报名业务处理
-    SVC->>DB: 写入预约记录
+    RT->>SVC: Apply business logic
+    SVC->>DB: Write reservation record
     DB-->>SVC: OK
-    SVC->>SMTP: 发送报名通知邮件 学生+顾问
-    alt SMTP 失败
-        Note over SVC,SMTP: 记录 error 但不阻断主流程
+    SVC->>SMTP: Send apply notification email Student+Advisor
+    alt SMTP failure
+        Note over SVC,SMTP: Log error without blocking main flow
     end
     SVC-->>CL: ResponseType code/message/data
 ```
 
-<p align="center">图 6-1 请求流转图</p>
+<p align="center">Figure 6-1 Request Flow</p>
 
-## 7. 目录结构 (Directory Structure)
+## 7. Directory Structure
 
 ```text
 id_x_008/
-├── x_plugin.py              # 插件入口：load_plugin() 返回 PluginInterface 实例；create_app() 构建独立 Litestar 应用
-├── __init__.py              # 包标识
-├── requirements.txt         # 模块独立依赖清单（>=x,<y 兼容性上界）
-├── LICENSE                  # AGPL-3.0 许可证
-├── src/                     # 源代码目录
-│   ├── models/              # SQLAlchemy ORM 模型层
-│   │   └── x_models.py      # Base 元数据、set_session_maker() 会话工厂注入
-│   └── controllers/         # 路由与 GraphQL 控制器
-│       └── x_controllers.py # register_routers(prefix) 注册 OAuth 路由与 GraphQL 端点
-├── utils/                   # 模块级工具
-│   └── database_client.py   # get_engine() / get_session_maker() 异步数据库客户端
-├── web/                     # 前端资源目录（预留）
-├── docs/                    # 模块文档目录
-├── ops/                     # 运维资产目录
-├── scripts/                 # 辅助脚本目录
-└── logs/                    # 运行日志输出目录（id_x_008.log）
+├── x_plugin.py              # Plugin entry: load_plugin() returns a PluginInterface instance; create_app() builds a standalone Litestar app
+├── __init__.py              # Package marker
+├── requirements.txt         # Module standalone dependency list (>=x,<y compatibility upper bound)
+├── LICENSE                  # AGPL-3.0 License
+├── src/                     # Source code directory
+│   ├── models/              # SQLAlchemy ORM model layer
+│   │   └── x_models.py      # Base metadata, set_session_maker() session factory injection
+│   └── controllers/         # Route and GraphQL controllers
+│       └── x_controllers.py # register_routers(prefix) registers OAuth routes and the GraphQL endpoint
+├── utils/                   # Module-level utilities
+│   └── database_client.py   # get_engine() / get_session_maker() async database client
+├── web/                     # Frontend assets directory (reserved)
+├── docs/                    # Module docs directory
+├── ops/                     # Ops assets directory
+├── scripts/                 # Helper scripts directory
+└── logs/                    # Runtime log output directory (id_x_008.log)
 ```
 
-## 8. API 接口文档 (API Documentation)
+## 8. API Documentation
 
-模块对外端点统一挂载于 `/b/id_x_008` 前缀之下。其中 `health` 与 `graphql` 端点由 `x_plugin.py` 显式注册；OAuth 登录与回调路由由 `src/controllers` 注册，具体路径以控制器实现为准。经 i-Core 引擎加载时，全部请求先经内核 `RequestMiddleware`（限流、Bearer 鉴权、GET/POST/OPTIONS 方法白名单）。
+All externally exposed endpoints are mounted under the `/b/id_x_008` prefix. The `health` and `graphql` endpoints are registered explicitly by `x_plugin.py`; the OAuth login and callback routes are registered by `src/controllers`, with exact paths subject to the controller implementation. When loaded via the i-Core engine, every request first passes through the kernel `RequestMiddleware` (rate limiting, Bearer authentication, and a GET/POST/OPTIONS method allowlist).
 
-<p align="center">表 8-1 端点汇总</p>
+<p align="center">Table 8-1 Endpoint Summary</p>
 
-| 方法 | 路径 | 鉴权 | 说明 |
+| Method | Path | Auth | Description |
 |------|------|------|------|
-| GET | /b/id_x_008/health | 免鉴权 | 健康检查，返回 {"status":"ok","service":"id_x_008"} |
-| GET | /b/id_x_008/login | 免鉴权 | OAuth/ADFS 登录入口，重定向至 ADFS 授权页 |
-| GET | /b/id_x_008/callback | 免鉴权 | OAuth 回调，以授权码换取 id_token 并建立会话 |
-| POST | /b/id_x_008/graphql | Bearer | GraphQL 单端点，承载全部业务查询与变更 |
+| GET | /b/id_x_008/health | Auth-exempt | Health check, returns {"status":"ok","service":"id_x_008"} |
+| GET | /b/id_x_008/login | Auth-exempt | OAuth/ADFS login entry, redirects to the ADFS authorization page |
+| GET | /b/id_x_008/callback | Auth-exempt | OAuth callback, exchanges the auth code for an id_token and establishes a session |
+| POST | /b/id_x_008/graphql | Bearer | Single GraphQL endpoint, carries all business queries and mutations |
 
-<p align="center">表 8-2 GraphQL 操作一览</p>
+<p align="center">Table 8-2 GraphQL Operations</p>
 
-| 类型 | 操作 | 说明 |
+| Type | Operation | Description |
 |------|------|------|
-| Query | availableSlots | 查询顾问可预约时段 |
-| Query | myReservations | 查询当前学生的预约记录 |
-| Query | advisors | 查询顾问列表 |
-| Mutation | oauthLogin | 以 ADFS 授权码换取会话凭证 |
-| Mutation | applyConsultation | 报名一场咨询 |
-| Mutation | cancelConsultation | 取消已有预约 |
+| Query | availableSlots | Query advisor available time slots |
+| Query | myReservations | Query the current student's reservation records |
+| Query | advisors | Query the advisor list |
+| Mutation | oauthLogin | Exchange an ADFS auth code for session credentials |
+| Mutation | applyConsultation | Sign up for a consultation |
+| Mutation | cancelConsultation | Cancel an existing reservation |
 
-注：上表操作名为按业务能力归纳的示意命名，权威 Schema 定义由 Strawberry 在 `/b/id_x_008/graphql` 端点生成，可通过内省（introspection）获取完整字段定义。响应统一封装为 `ResponseType(code, message, data)`；内核级异常码为 401（未鉴权）、405（方法不允许）、429（触发限流），业务级异常码以模块返回为准。
+Note: The operation names above are illustrative names derived from business capability; the authoritative schema is generated by Strawberry at the `/b/id_x_008/graphql` endpoint, and the full field definitions can be obtained via introspection. Responses are uniformly wrapped as `ResponseType(code, message, data)`; kernel-level error codes are 401 (unauthenticated), 405 (method not allowed), and 429 (rate limited), while business-level error codes are returned by the module.
 
-健康检查：
+Health check:
 
 ```bash
 curl "<BASE_URL>/b/id_x_008/health"
 # {"status":"ok","service":"id_x_008"}
 ```
 
-Schema 内省：
+Schema introspection:
 
 ```bash
 curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
@@ -220,7 +220,7 @@ curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
   -d '{"query":"query { __schema { queryType { name } mutationType { name } } }"}'
 ```
 
-报名咨询（applyConsultation）：
+Apply for a consultation (applyConsultation):
 
 ```bash
 curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
@@ -229,7 +229,7 @@ curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
   -d '{"query":"mutation { applyConsultation(input: { slotId: \"<SLOT_ID>\" }) { code message data { reservationId status } } }"}'
 ```
 
-取消预约（cancelConsultation）：
+Cancel a reservation (cancelConsultation):
 
 ```bash
 curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
@@ -238,19 +238,19 @@ curl -X POST "<BASE_URL>/b/id_x_008/graphql" \
   -d '{"query":"mutation { cancelConsultation(input: { reservationId: \"<RESERVATION_ID>\" }) { code message } }"}'
 ```
 
-## 9. 快速部署 (Quick Deploy)
+## 9. Quick Deploy
 
-### 9.1 环境准备 (Prerequisites)
+### 9.1 Prerequisites
 
 - Python ≥ 3.10
-- PostgreSQL（建议 ≥ 14）
-- Microsoft ADFS OAuth 凭据（client_id / client_secret / redirect_uri / 授权与令牌端点 / JWKS URI）
-- 可达的 SMTP 邮件服务（发件账号与凭证）
-- uv（推荐）或 pip
+- PostgreSQL (≥ 14 recommended)
+- Microsoft ADFS OAuth credentials (client_id / client_secret / redirect_uri / authorization and token endpoints / JWKS URI)
+- A reachable SMTP mail service (sender account and credentials)
+- uv (recommended) or pip
 
-### 9.2 安装 (Installation)
+### 9.2 Installation
 
-作为 i-Core 子模块随内核安装：
+Install as an i-Core submodule along with the kernel:
 
 ```bash
 git clone <REPO_URL> i-Core
@@ -258,16 +258,16 @@ cd i-Core
 uv sync
 ```
 
-或仅安装本模块依赖（独立运行）：
+Or install only this module's dependencies (standalone run):
 
 ```bash
 cd x_models/id_x_008
-pip install -r requirements.txt   # 或 uv pip install -r requirements.txt
+pip install -r requirements.txt   # or uv pip install -r requirements.txt
 ```
 
-### 9.3 运行 (Run)
+### 9.3 Run
 
-引擎插件模式（生产，复用内核安全中间件与连接池托管）：
+Engine plugin mode (production, reusing the kernel security middleware and connection-pool hosting):
 
 ```text
 # config/base_config.toml
@@ -281,26 +281,26 @@ MODELS = [
 uv run python main.py
 ```
 
-独立运行模式（本地调试，默认端口 8101）：
+Standalone run mode (local debugging, default port 8101):
 
 ```bash
 IAO_PORT=8101 python x_models/id_x_008/x_plugin.py
 ```
 
-独立模式启动时会以 `RuntimeWarning` 提示未启用安全加固（CORS、限流等），生产环境请通过 i-Core 引擎加载。
+On startup, standalone mode emits a `RuntimeWarning` indicating that security hardening (CORS, rate limiting, etc.) is not enabled; for production, load the module through the i-Core engine.
 
-<p align="center">表 9-1 配置项清单</p>
+<p align="center">Table 9-1 Configuration Items</p>
 
-| 配置组 | 说明 | 必填 |
+| Group | Description | Required |
 |------|------|------|
-| 数据库连接 | PostgreSQL host / port / db / user / password，经 i-Core 分层 .env 提供 | 是 |
-| ADFS OAuth | client_id / client_secret / redirect_uri / 授权端点 / 令牌端点 / JWKS URI | 是 |
-| SMTP 邮件 | host / port / 账号 / 凭证 / 发件人地址 | 是 |
-| 运行端口 | IAO_PORT（独立模式，默认 8101） | 否 |
+| Database Connection | PostgreSQL host / port / db / user / password, provided via the i-Core layered .env | Yes |
+| ADFS OAuth | client_id / client_secret / redirect_uri / authorization endpoint / token endpoint / JWKS URI | Yes |
+| SMTP Mail | host / port / account / credentials / sender address | Yes |
+| Runtime Port | IAO_PORT (standalone mode, default 8101) | No |
 
-### 9.4 容器部署 (可选)
+### 9.4 Container Deployment (Optional)
 
-独立模式的容器化示例（适配 Podman / Docker）：
+Containerized standalone-mode example (Podman / Docker compatible):
 
 ```dockerfile
 FROM docker.io/python:3.12-slim
@@ -318,4 +318,4 @@ podman build -t id_x_008:latest x_models/id_x_008
 podman run --rm -p 8101:8101 --env-file .env id_x_008:latest
 ```
 
-生产部署建议将本模块交由 i-Core 引擎进程统一加载（Granian 多 worker 托管），并于前置 HAProxy 完成 TLS 终止与反向代理，而非直接暴露独立模式容器。
+For production, it is recommended to load this module through the i-Core engine process (Granian multi-worker hosting) and place a fronting HAProxy for TLS termination and reverse proxying, rather than exposing the standalone-mode container directly.
