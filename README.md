@@ -9,7 +9,6 @@
 ![Author](https://img.shields.io/static/v1?label=Author&message=Ray&color=C3272B&style=for-the-badge&labelColor=555)
 ![Org](https://img.shields.io/static/v1?label=Org&message=TorchLabs&color=C3272B&style=for-the-badge&labelColor=555)
 ![Engine](https://img.shields.io/static/v1?label=Engine&message=Litestar%2FStrawberry&color=C3272B&style=for-the-badge&labelColor=555)
-![Database](https://img.shields.io/static/v1?label=Database&message=PostgreSQL&color=C3272B&style=for-the-badge&labelColor=555)
 
 </div>
 
